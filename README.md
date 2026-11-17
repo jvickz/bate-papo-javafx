@@ -100,7 +100,7 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 - Mensagens pendentes expiram após 15 segundos sem confirmação. Não são reenviadas automaticamente.
 - “Confirmada pelo servidor” não significa lida nem recebida por alguém que estava offline.
 - Histórico somente na memória do cliente, até 500 itens por canal e 20 canais; sair ou fechar limpa a conversa.
-- Não há cadastro, transferência de arquivos, banco de dados ou criptografia de ponta a ponta. O servidor processa o texto. Apelidos não comprovam identidade.
+- Não há cadastro, transferência de arquivos ou banco de dados. O texto não tem criptografia de ponta a ponta: o servidor processa as mensagens. Apelidos não comprovam identidade.
 
 ## Organização
 

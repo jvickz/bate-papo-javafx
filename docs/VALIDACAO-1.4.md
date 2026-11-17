@@ -20,4 +20,15 @@ Não houve teste com microfone ou alto-falantes físicos nem audição entre dua
 
 O instalador não contém chave permanente de TURN nem código de acesso da sala. Os JARs originais e seus avisos de licença são mantidos. O pacote é local; não foi publicada uma release binária no GitHub.
 
+## Pacote e publicação
+
+`scripts/package-windows.ps1 -SkipTests -Installer` terminou com sucesso após o reator completo acima, sem mudanças de código entre teste e pacote. Pasta `dist/20261117-125710`. O MSI informa `ProductVersion=1.4.0`; a configuração do launcher contém os dois JARs WebRTC (API e Windows x64). A versão portátil foi aberta pelo Explorador de Arquivos e a tela de entrada exibiu `WINDOWS / v1.4`. A instalação via MSI não foi executada neste teste.
+
+SHA-256:
+
+- MSI: `6F2E78D1BA7CCED5B6A4820178372AFAB3095EBDACAAFF53A364DC4BF5250167`
+- ZIP: `4A2E3D3B9DFB029EF5DDC5B8C2D1CA2CFC11857BFE90C7E8ED0BAD52B361847C`
+
+Código publicado no commit `e4f25fc00991763b2a9ad2f57d6abff02eff5cef`. Deploy Render `dep-dbu7isbl550s73a5rt9g` ficou `live` às 15:58:45 UTC. Após a publicação, `https://bate-papo-java.onrender.com/health` respondeu HTTP 200 com `{"status":"ok"}`; não havia logs de erro na janela consultada. Isso confirma o servidor de chat disponível, não a ativação de TURN.
+
 Instruções para o proprietário: [VOICE-SETUP.md](VOICE-SETUP.md). Instruções de chamada: [CHAMADAS-DE-VOZ.txt](CHAMADAS-DE-VOZ.txt).
