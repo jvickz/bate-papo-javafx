@@ -84,7 +84,8 @@ final class Room {
     }
     private void broadcast(Event e) {
         String json = Protocol.encode(e);
-        members.values().stream().filter(m -> m.name != null).forEach(m -> m.transport.send(json));
+        // A transport may synchronously invoke onClose while sending.
+        List.copyOf(members.values()).stream().filter(m -> m.name != null).forEach(m -> m.transport.send(json));
     }
     private void presence() {
         var names = members.values().stream().map(m -> m.name).filter(Objects::nonNull).sorted(String.CASE_INSENSITIVE_ORDER).toList();
@@ -107,5 +108,9 @@ final class Room {
             }
         }
     }
-    synchronized void shutdown() { for (var m : members.values()) m.transport.close(); members.clear(); }
+    synchronized void shutdown() {
+        var closing = List.copyOf(members.values());
+        members.clear();
+        for (var m : closing) m.transport.close();
+    }
 }
