@@ -43,4 +43,6 @@ O teste adicional do provedor confirmou que os diagnósticos omitem segredo, ID 
 
 Para tolerar demora transitória, o prazo HTTP passou de 5 para 12 segundos e o prazo de preparação da sala de 8 para 15 segundos. As três regressões novas falharam com os limites anteriores e passaram após a alteração: resposta HTTP local após 5,5 segundos, credenciais prontas aos 10 segundos e expiração aos 15 segundos com descarte do resultado tardio. A negociação permanece com 45 segundos contados após as credenciais. A suíte completa de protocolo/servidor passou às 13:29:39 (São Paulo): **45 testes, zero falhas/erros/ignorados**. Revisão independente aprovada. O cliente de produção e os binários 1.4 permanecem os mesmos.
 
+Publicação final do servidor: commit `21aa5926113e4b7f3b531214488b3c4fbe332aef`, deploy `dep-dbu82bmk1f9s739niidg`, live às 16:32:15 UTC. A primeira execução do diagnóstico após esse deploy passou com relay e áudio PCM/RTP nos dois sentidos. `/health` retornou HTTP 200 e `{"status":"ok"}`. O aplicativo portátil 1.4 também entrou no servidor público e exibiu conexão ativa e controles de voz. O MSI/ZIP no workspace original continuam com os hashes acima; nenhuma chave foi incorporada.
+
 Instruções para o proprietário: [VOICE-SETUP.md](VOICE-SETUP.md). Instruções de chamada: [CHAMADAS-DE-VOZ.txt](CHAMADAS-DE-VOZ.txt).
