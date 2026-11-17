@@ -4,13 +4,18 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -79,6 +84,41 @@ class CloudflareTurnCredentialsTest {
         try (var turn = provider(server, Duration.ofMillis(250))) {
             assertThrows(ExecutionException.class, () -> turn.issue().toCompletableFuture().get(1, TimeUnit.SECONDS));
         }
+    }
+
+    @Test
+    @ResourceLock(Resources.SYSTEM_ERR)
+    void diagnosesProviderRejectionAndInvalidIceWithoutLoggingTheirContents() throws Exception {
+        var status = new AtomicInteger(401);
+        server.createContext("/", exchange -> {
+            try (exchange) {
+                byte[] body = """
+                        {"iceServers":[{"credential":"provider-secret","urls":[]}],"detail":"private-response"}
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(status.get(), body.length);
+                exchange.getResponseBody().write(body);
+            }
+        });
+        server.start();
+
+        var output = new ByteArrayOutputStream();
+        PrintStream original = System.err;
+        try (var logs = new PrintStream(output, true, StandardCharsets.UTF_8);
+             var turn = provider(server, Duration.ofSeconds(3))) {
+            System.setErr(logs);
+            assertThrows(ExecutionException.class, () -> turn.issue().toCompletableFuture().get(5, TimeUnit.SECONDS));
+            status.set(201);
+            assertThrows(ExecutionException.class, () -> turn.issue().toCompletableFuture().get(5, TimeUnit.SECONDS));
+        } finally {
+            System.setErr(original);
+        }
+        String diagnostics = output.toString(StandardCharsets.UTF_8);
+        assertTrue(diagnostics.contains("TURN credentials: http_status=401"));
+        assertTrue(diagnostics.contains("TURN credentials: invalid_ice_response"));
+        assertFalse(diagnostics.contains("private-response"));
+        assertFalse(diagnostics.contains("provider-secret"));
+        assertFalse(diagnostics.contains("test-api-token"));
+        assertFalse(diagnostics.contains("key-id"));
     }
 
     @Test void invalidEnvironmentLeavesTurnDisabled() {
