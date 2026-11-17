@@ -1,13 +1,21 @@
-BATE-PAPO 1.4 — WINDOWS x64
+WAVECOVE 1.6 — WINDOWS x64
 
-1. Se recebeu BatePapo-1.4.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
-   Se recebeu um ZIP, extraia tudo antes de abrir BatePapo.exe.
+1. Se recebeu Wavecove-1.6.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
+   Se recebeu um ZIP, extraia tudo antes de abrir Wavecove.exe.
    Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
    Não precisa instalar Java separadamente.
 
-2. Abra o Bate-papo. Um apelido já vem preenchido; você pode editá-lo
+2. Abra o Wavecove. Um apelido já vem preenchido; você pode editá-lo
    ou clicar em Gerar outro. Cole o código de acesso recebido e entre.
    Se o apelido estiver em uso, clique em Gerar outro e tente novamente.
+
+FOTOS E VÍDEOS
+
+No canal, use Anexar para enviar uma foto JPG/PNG de até 5 MB e
+8 megapixels ou um vídeo MP4 de até 15 MB. A outra pessoa pode usar
+Ver foto, Salvar foto ou Baixar vídeo. Abra o vídeo salvo no Windows.
+Os dois lados precisam do Wavecove 1.6 e de um servidor atualizado.
+Os anexos ficam disponíveis por até 30 minutos e somem se o servidor reiniciar.
    O código digitado é mantido nessa tentativa.
 
    O servidor padrão é https://bate-papo-java.onrender.com.
@@ -33,7 +41,7 @@ BATE-PAPO 1.4 — WINDOWS x64
 6. Verificar servidor consulta o endereço /health por HTTP/HTTPS.
    Esse teste não verifica o código de acesso nem a conexão WebSocket
    usada na conversa. Se o servidor gratuito estiver iniciando, aguarde
-   um minuto e tente novamente; depois use Entrar na conversa.
+   um minuto e tente novamente; depois use Entrar.
 
 Enter envia. Shift+Enter quebra a linha.
 O contador mostra o limite de 2000 caracteres por mensagem.

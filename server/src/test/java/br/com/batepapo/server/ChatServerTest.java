@@ -71,6 +71,66 @@ class ChatServerTest {
         assertThrows(IllegalArgumentException.class, () -> new ChatServer("short", 0));
     }
 
+    @Test void sharesARealPhotoOnlyWithAuthenticatedPeersInTheChannel() throws Exception {
+        var ana = peer();
+        var bia = peer();
+        var carla = peer();
+        String a = mediaLogin(ana, "Ana");
+        String b = mediaLogin(bia, "Bia");
+        String c = mediaLogin(carla, "Carla");
+        carla.send(new Event("create", "create", null, null, null, null, null, null, "privado"));
+        carla.next("joined");
+
+        var out = new java.io.ByteArrayOutputStream();
+        assertTrue(javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(4, 3,
+                java.awt.image.BufferedImage.TYPE_INT_RGB), "png", out));
+        byte[] png = out.toByteArray();
+        URI origin = URI.create("http://localhost:" + server.port() + Attachment.PATH);
+        try (var http = HttpClient.newHttpClient()) {
+            var unauthorized = HttpRequest.newBuilder(origin).POST(HttpRequest.BodyPublishers.ofByteArray(png)).build();
+            assertEquals(403, http.send(unauthorized, HttpResponse.BodyHandlers.discarding()).statusCode());
+            assertEquals(201, http.send(upload(origin, a, "férias.png", png), HttpResponse.BodyHandlers.discarding()).statusCode());
+            var event = bia.next("attachment");
+            assertEquals("férias.png", event.text());
+            assertEquals("Ana", event.name());
+            assertEquals("geral", event.channel());
+            assertNull(event.session());
+            assertNull(event.token());
+            URI file = URI.create(origin + "/" + event.id());
+            var denied = HttpRequest.newBuilder(file).header(Attachment.SESSION_HEADER, c).build();
+            assertEquals(404, http.send(denied, HttpResponse.BodyHandlers.discarding()).statusCode());
+            var request = HttpRequest.newBuilder(file).header(Attachment.SESSION_HEADER, b).build();
+            var downloaded = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            assertEquals(200, downloaded.statusCode());
+            assertArrayEquals(png, downloaded.body());
+            assertEquals("image/png", downloaded.headers().firstValue("Content-Type").orElseThrow());
+            assertTrue(carla.events.stream().noneMatch(item -> "attachment".equals(item.type())));
+        }
+    }
+
+    @Test void rejectsDisguisedFilesAndOversizedPhotos() throws Exception {
+        String ana = mediaLogin(peer(), "Ana"), bia = mediaLogin(peer(), "Bia");
+        URI origin = URI.create("http://localhost:" + server.port() + Attachment.PATH);
+        try (var http = HttpClient.newHttpClient()) {
+            var fake = upload(origin, ana, "foto.png", new byte[]{1, 2, 3});
+            assertEquals(415, http.send(fake, HttpResponse.BodyHandlers.discarding()).statusCode());
+            var oversized = upload(origin, bia, "foto.png", new byte[Attachment.PNG.limit() + 1]);
+            assertEquals(413, http.send(oversized, HttpResponse.BodyHandlers.discarding()).statusCode());
+        }
+    }
+
+    private static String mediaLogin(Peer peer, String name) throws InterruptedException {
+        peer.send(new Event("hello", "channels-v1", name, null, TOKEN, null, List.of(Attachment.CAPABILITY), null, "geral"));
+        return peer.next("attachments").session();
+    }
+
+    private static HttpRequest upload(URI origin, String session, String filename, byte[] data) {
+        String encoded = Base64.getUrlEncoder().encodeToString(filename.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return HttpRequest.newBuilder(origin).timeout(java.time.Duration.ofSeconds(10))
+                .header(Attachment.SESSION_HEADER, session).header(Attachment.CHANNEL_HEADER, "geral")
+                .header(Attachment.FILENAME_HEADER, encoded).POST(HttpRequest.BodyPublishers.ofByteArray(data)).build();
+    }
+
     static class Peer implements WebSocket.Listener, AutoCloseable {
         final BlockingQueue<Event> events = new LinkedBlockingQueue<>();
         final CountDownLatch closed = new CountDownLatch(1);

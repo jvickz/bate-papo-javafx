@@ -1,9 +1,9 @@
 .root {
     -fx-font-family: "Segoe UI";
     -fx-font-size: 14px;
-    -fx-background-color: #091125;
+    -fx-background-color: #0b1424;
     -fx-text-fill: #d2e9eb;
-    -fx-focus-color: #85ecdc;
+    -fx-focus-color: #77e5d3;
     -fx-faint-focus-color: transparent;
 }
 
@@ -15,7 +15,7 @@
     -fx-padding: 22 17;
     -fx-spacing: 13;
 }
-.brand { -fx-font-family: "VT323"; -fx-font-size: 36px; -fx-text-fill: #a8f2e6; }
+.brand { -fx-font-family: "VT323"; -fx-font-size: 34px; -fx-text-fill: #e8f6fa; }
 .muted { -fx-font-family: "Segoe UI"; -fx-text-fill: #b8ced5; -fx-font-size: 13px; }
 .sidebar .muted { -fx-text-fill: #abc4ce; -fx-font-size: 12px; }
 .eyebrow, .channel-heading { -fx-font-size: 12px; -fx-text-fill: #9cd8d5; }
@@ -63,11 +63,13 @@
     -fx-border-color: transparent transparent #355366 transparent;
 }
 .title { -fx-font-family: "VT323"; -fx-font-size: 32px; -fx-text-fill: #d5f4f1; }
-.hero { -fx-font-family: "VT323"; -fx-font-size: 42px; -fx-text-fill: #d5f4f1; }
+.hero { -fx-font-family: "VT323"; -fx-font-size: 46px; -fx-text-fill: #eef8fa; }
 .card {
-    -fx-background-color: rgba(11, 24, 39, 0.97);
-    -fx-border-color: #48687c #48687c #48687c #7accc5;
-    -fx-border-width: 1 1 1 3;
+    -fx-background-color: #0b1424;
+    -fx-border-color: #294861;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
     -fx-padding: 26 28;
     -fx-spacing: 12;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 30, 0, 0, 8);
@@ -112,7 +114,8 @@
 }
 .button:hover, .toggle-button:hover { -fx-background-color: #1f4659; -fx-border-color: #75ccc7; }
 .button:focused, .toggle-button:focused { -fx-border-color: #c6fff6; -fx-border-width: 2; -fx-padding: 9 17; }
-.primary { -fx-background-color: #8ee3d5; -fx-border-color: #b5f6ea; -fx-text-fill: #0a2430; }
+.primary { -fx-background-color: #77e5d3; -fx-border-color: #b5f6ea; -fx-text-fill: #0b1424; }
+.card .text-field, .card .primary { -fx-background-radius: 6; -fx-border-radius: 6; }
 .primary:hover { -fx-background-color: #bbf5ea; }
 .primary:focused { -fx-border-color: #e0fffa; }
 .demo-button { -fx-background-color: #292a31; -fx-border-color: #92765b; -fx-text-fill: #f3d2a4; }
@@ -230,7 +233,7 @@
     -fx-border-width: 1 1 1 3;
 }
 .voice-status { -fx-font-size: 12px; -fx-text-fill: #d2e9eb; }
-.voice-duration { -fx-font-family: "Consolas"; -fx-font-size: 13px; -fx-text-fill: #a8f2e6; }
+.voice-duration { -fx-font-family: "Consolas"; -fx-font-size: 13px; -fx-text-fill: #ffc37a; }
 .button.voice-action, .toggle-button.voice-action {
     -fx-font-family: "Segoe UI";
     -fx-font-size: 12px;

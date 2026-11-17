@@ -28,10 +28,10 @@ A documentação consultada em 17/11/2026 informa franquia mensal de 1.000 GB co
 
 ### Diagnóstico local do relay TURN
 
-Depois de configurar e publicar o servidor, execute o diagnóstico no Windows x64. O lançador de teste usa o servidor público padrão do Bate-papo e fica separado do aplicativo distribuído. Na raiz do repositório, gere a imagem portátil com `./scripts/package-windows.ps1` se ainda não tiver uma. No trecho abaixo, ajuste a primeira linha para apontar para a pasta `BatePapo` da imagem gerada.
+Depois de configurar e publicar o servidor, execute o diagnóstico no Windows x64. O lançador de teste usa o servidor público padrão do Wavecove e fica separado do aplicativo distribuído. Na raiz do repositório, gere a imagem portátil com `./scripts/package-windows.ps1` se ainda não tiver uma. No trecho abaixo, ajuste a primeira linha para apontar para a pasta `Wavecove` da imagem gerada.
 
 ```powershell
-$package = (Resolve-Path 'dist/<data-hora>/BatePapo').Path
+$package = (Resolve-Path 'dist/<data-hora>/Wavecove').Path
 $jdk = Join-Path $env:LOCALAPPDATA 'BatePapo/build-tools/jdk-21.0.13+9/bin'
 $build = Join-Path $PWD ('.local/turn-diagnostic-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
 $inputDir = Join-Path $build 'input'

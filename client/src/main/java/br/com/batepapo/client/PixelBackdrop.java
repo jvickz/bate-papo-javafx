@@ -15,9 +15,9 @@ final class PixelBackdrop extends Region implements AutoCloseable {
     private static final long FRAME_INTERVAL = 50_000_000L;
 
     private static final Color[] SKY = {
-            Color.web("#091125"), Color.web("#0b152a"), Color.web("#0e192f"),
-            Color.web("#101e35"), Color.web("#13243c"), Color.web("#172b43"),
-            Color.web("#1a324a"), Color.web("#1d3c53")
+            Color.web("#0b1424"), Color.web("#0b172b"), Color.web("#0c1b32"),
+            Color.web("#0e2039"), Color.web("#102640"), Color.web("#142a43"),
+            Color.web("#17324a"), Color.web("#1b3a51")
     };
     private static final Color[] SEA = {
             Color.web("#15394d"), Color.web("#123345"), Color.web("#102e41"),
@@ -25,8 +25,8 @@ final class PixelBackdrop extends Region implements AutoCloseable {
             Color.web("#0a1d2f"), Color.web("#0a192a")
     };
     private static final Color[] WAVES = {
-            Color.web("#194255"), Color.web("#1c4e60"), Color.web("#215969"),
-            Color.web("#296572"), Color.web("#307581")
+            Color.web("#194255"), Color.web("#1c5161"), Color.web("#226778"),
+            Color.web("#2d808b"), Color.web("#3d9d9e")
     };
     private static final Color[] REFLECTION = {
             Color.web("#245569"), Color.web("#32717c"), Color.web("#43838a")
@@ -43,7 +43,7 @@ final class PixelBackdrop extends Region implements AutoCloseable {
     private static final Color HORIZON = Color.web("#315b6c");
     private static final Color WAKE_SHADOW = Color.web("#103040");
     private static final Color WAKE = Color.web("#346f78");
-    private static final Color LANTERN_REFLECTION = Color.web("#a78364");
+    private static final Color LANTERN_REFLECTION = Color.web("#ffc37a");
 
     private static final Map<Character, Color> BOAT_PALETTE = Map.ofEntries(
             Map.entry('a', Color.web("#edb66c")),

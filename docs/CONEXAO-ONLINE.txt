@@ -1,7 +1,7 @@
-BATE-PAPO 1.4 — CONEXÃO PELA INTERNET
+WAVECOVE 1.6 — CONEXÃO PELA INTERNET
 
-Instale BatePapo-1.4.0.msi nos dois computadores Windows x64.
-Ou extraia BatePapo-Windows-x64.zip inteiro e abra BatePapo.exe.
+Instale Wavecove-1.6.0.msi nos dois computadores Windows x64.
+Ou extraia Wavecove-Windows-x64.zip inteiro e abra Wavecove.exe.
 Java já está incluído.
 
 Para convidar alguém em outro local:
@@ -14,7 +14,7 @@ Para convidar alguém em outro local:
 2. No outro computador, instale o MSI ou extraia todo o ZIP e abra o programa.
    O apelido já vem preenchido. É possível editá-lo ou clicar em Gerar outro.
    Se estiver em uso, Gerar outro permite tentar novamente mantendo o código.
-   Cole o mesmo código de acesso e clique em Entrar na conversa.
+   Cole o mesmo código de acesso e clique em Entrar.
 
 3. O endereço padrão é https://bate-papo-java.onrender.com.
    Se o convite indicar outro endereço, expanda

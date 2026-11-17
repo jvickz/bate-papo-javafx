@@ -22,6 +22,31 @@ class RoomVoiceTest {
     private final List<CompletableFuture<List<VoiceConfig.IceServer>>> requests = new ArrayList<>();
     private final Room room = new Room(TOKEN, this::issueCredentials, now::get);
 
+    @Test void discardsAnUploadAfterChannelChangeAndExpiresPublishedAttachments() {
+        var events = new ArrayList<Event>();
+        room.open("uploader", new Room.Transport() {
+            @Override public void send(String json) { events.add(Protocol.decode(json)); }
+            @Override public void close() {}
+        });
+        room.receive("uploader", Protocol.encode(new Event("hello", "channels-v1", "Ana", null, TOKEN, null,
+                List.of(br.com.batepapo.protocol.Attachment.CAPABILITY), null, "geral")));
+        String session = events.stream().filter(event -> event.type().equals("attachments"))
+                .findFirst().orElseThrow().session();
+        var first = room.beginUpload(session, "geral");
+        assertNotNull(first);
+        room.receive("uploader", Protocol.encode(new Event("create", "room", null, null, null, null, null, null, "porto")));
+        var kind = br.com.batepapo.protocol.Attachment.PNG;
+        assertFalse(room.publishAttachment(first, "foto.png", kind, new byte[1]));
+        now.addAndGet(Duration.ofSeconds(3).toNanos());
+        var next = room.beginUpload(session, "porto");
+        assertNotNull(next);
+        assertTrue(room.publishAttachment(next, "foto.png", kind, new byte[1]));
+        String id = events.getLast().id();
+        assertNotNull(room.attachment(session, id));
+        now.addAndGet(Duration.ofMinutes(30).toNanos());
+        assertNull(room.attachment(session, id));
+    }
+
     @Test void announcesVoiceUnavailableWithoutInterruptingChat() {
         Room disabled = new Room(TOKEN);
         var ana = new Peer(disabled, "ana");

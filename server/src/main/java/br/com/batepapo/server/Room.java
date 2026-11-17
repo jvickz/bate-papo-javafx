@@ -33,6 +33,10 @@ final class Room {
     private static final int VOICE_FRAMES_PER_SECOND = 128;
     private static final int SIGNALS_PER_SECOND = 48;
     private static final int RECENT_CALL_IDS = 1024;
+    private static final long ATTACHMENT_TTL = TimeUnit.MINUTES.toNanos(30);
+    private static final long UPLOAD_INTERVAL = TimeUnit.SECONDS.toNanos(3);
+    private static final int ATTACHMENT_BUDGET = 60_000_000;
+    private static final int MAX_ATTACHMENTS = 150;
     private static final ObjectMapper SIGNAL_JSON = new ObjectMapper(JsonFactory.builder()
             .streamReadConstraints(StreamReadConstraints.builder().maxNestingDepth(8)
                     .maxStringLength(MAX_SIGNAL_BYTES).build()).build())
@@ -45,6 +49,8 @@ final class Room {
     private final LinkedHashSet<UUID> recentCalls = new LinkedHashSet<>();
     private final Set<String> channels = new LinkedHashSet<>(List.of(DEFAULT_CHANNEL));
     private final Map<String, Member> members = new LinkedHashMap<>();
+    private final Map<String, StoredAttachment> attachments = new LinkedHashMap<>();
+    private int attachmentBytes;
     private final Deque<Event> broadcasts = new ArrayDeque<>();
     private boolean broadcasting;
     private boolean shuttingDown;
@@ -55,12 +61,15 @@ final class Room {
         long seen, ping, window, nextInvite;
         int frames, commands, messages, signals, signalBytes;
         String name, resume, channel;
+        String attachmentSession;
+        long channelRevision, nextUpload;
         boolean supportsChannels, supportsVoice;
         Call call;
         final LinkedHashSet<String> ids = new LinkedHashSet<>();
 
         Member(Transport transport, long now) {
             this.transport = transport;
+            nextUpload = now;
             connected = seen = ping = window = nextInvite = now;
         }
     }
@@ -179,6 +188,52 @@ final class Room {
         broadcast(new Event("message", messageId, member.name, event.text(), null, null, null, Instant.now().toString(), member.channel));
     }
 
+    record UploadPermit(String session, long channelRevision) {}
+    record StoredAttachment(String channel, Attachment type, byte[] data, long expires) {}
+
+    private Member attachmentMember(String session) {
+        if (!Attachment.validId(session)) return null;
+        return members.values().stream().filter(member -> session.equals(member.attachmentSession))
+                .findFirst().orElse(null);
+    }
+
+    synchronized UploadPermit beginUpload(String session, String channel) {
+        Member member = attachmentMember(session);
+        long now = clock.getAsLong();
+        if (member == null || !member.channel.equals(channel) || now - member.nextUpload < 0) return null;
+        member.nextUpload = now + UPLOAD_INTERVAL;
+        return new UploadPermit(session, member.channelRevision);
+    }
+
+    synchronized boolean publishAttachment(UploadPermit permit, String filename, Attachment type, byte[] data) {
+        Member member = attachmentMember(permit.session());
+        if (member == null || member.channelRevision != permit.channelRevision()) return false;
+        long now = clock.getAsLong();
+        expireAttachments(now);
+        if (attachments.size() >= MAX_ATTACHMENTS || data.length > ATTACHMENT_BUDGET - attachmentBytes) return false;
+        String id = UUID.randomUUID().toString();
+        attachments.put(id, new StoredAttachment(member.channel, type, data, now + ATTACHMENT_TTL));
+        attachmentBytes += data.length;
+        broadcast(new Event("attachment", id, member.name, filename, null, null, null,
+                Instant.now().toString(), member.channel));
+        return true;
+    }
+
+    synchronized StoredAttachment attachment(String session, String id) {
+        Member member = attachmentMember(session);
+        if (member == null) return null;
+        StoredAttachment item = attachments.get(id);
+        return item != null && clock.getAsLong() - item.expires() < 0 && member.channel.equals(item.channel()) ? item : null;
+    }
+
+    private void expireAttachments(long now) {
+        attachments.values().removeIf(item -> {
+            if (now - item.expires() < 0) return false;
+            attachmentBytes -= item.data().length;
+            return true;
+        });
+    }
+
     private void authenticate(String id, Member member, Event event) {
         if (!event.type().equals("hello") || event.token() == null || event.token().length() > 128 ||
                 !MessageDigest.isEqual(accessCode, event.token().getBytes(StandardCharsets.UTF_8))) {
@@ -223,6 +278,11 @@ final class Room {
                     turn == null ? "O servidor ainda não está configurado para chamadas de voz." : "Chamadas de voz disponíveis.",
                     null, null, null, null));
         }
+        if (members.get(id) == member && member.supportsChannels && event.users() != null
+                && event.users().contains(Attachment.CAPABILITY)) {
+            member.attachmentSession = UUID.randomUUID().toString();
+            send(member, new Event("attachments", null, null, null, null, member.attachmentSession, null, null));
+        }
         if (members.get(id) == member) announce(member.channel, name + " entrou na sala.");
     }
 
@@ -249,6 +309,7 @@ final class Room {
         }
 
         String previousChannel = member.channel;
+        member.channelRevision++;
         member.channel = channel;
         if (!previousChannel.equals(channel))
             endCall(member.call, "Um participante mudou de canal.", null);
@@ -504,6 +565,7 @@ final class Room {
             Member member = entry.getValue();
             if (member.name == null || members.get(entry.getKey()) != member) continue;
             if (channel != null && !channel.equals(member.channel)) continue;
+            if (event.type().equals("attachment") && member.attachmentSession == null) continue;
             if (member.supportsChannels) member.transport.send(currentJson);
             else if (legacyJson != null) member.transport.send(legacyJson);
         }
@@ -532,6 +594,7 @@ final class Room {
 
     synchronized void tick() {
         long now = clock.getAsLong();
+        expireAttachments(now);
         for (Call call : List.copyOf(calls.values())) expireCall(call, now);
         for (var entry : List.copyOf(members.entrySet())) {
             var m = entry.getValue();
@@ -547,6 +610,8 @@ final class Room {
         var closing = List.copyOf(members.values());
         members.clear();
         broadcasts.clear();
+        attachments.clear();
+        attachmentBytes = 0;
         for (Call call : List.copyOf(calls.values())) endCall(call, "Servidor encerrando.", null);
         for (var m : closing) m.transport.close();
     }

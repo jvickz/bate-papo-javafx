@@ -1,18 +1,18 @@
-# Bate-papo para Windows
+# Wavecove para Windows
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Duas pessoas conectam ao mesmo servidor, com o mesmo código de acesso e apelidos diferentes, para conversar em tempo real.
 
-O cliente Windows 1.4 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+O Wavecove combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
 
-![Conversa e mar pixelado — versão 1.3](docs/previews/conversation-1.3.png)
+![Tela de entrada do Wavecove](docs/previews/wavecove-login.png)
 
 ## Abrir o aplicativo
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `BatePapo-1.4.0.msi`: instalador para Windows x64, por usuário, com atalhos.
-- `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
-- `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
+- `Wavecove-1.6.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `Wavecove-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `Wavecove.exe`.
+- `Wavecove/Wavecove.exe`: aplicativo já extraído nesta máquina.
 
 Java está incluído no pacote. O servidor roda separadamente. `localhost` funciona somente no mesmo computador.
 
@@ -34,11 +34,17 @@ Após entrar, use **novo-canal** e **+** na lateral para criar e entrar em um ca
 
 Trocar de canal preserva rascunhos e histórico separado durante a sessão. **Convidar pessoa** copia o servidor e o canal; envie o código separadamente. **Verificar servidor** consulta a saúde HTTP, sem validar o código nem substituir a conexão WSS. Você pode copiar mensagens pelo menu de contexto e recuperar o texto de envios recusados. Os canais são temporários e desaparecem se o servidor reiniciar; nesse caso o aplicativo retorna a `geral`. Clientes 1.0/1.1 continuam conversando em `geral`; use 1.2 para acessar os novos canais.
 
+## Fotos e vídeos
+
+Na versão 1.6, clique em **Anexar** no canal e selecione uma foto JPG ou PNG de até 5 MB (até 8 megapixels) ou um vídeo MP4 de até 15 MB. A outra pessoa pode usar **Ver foto**, **Salvar foto** ou **Baixar vídeo**. O vídeo abre no player do Windows depois de salvo. Os dois participantes precisam do Wavecove 1.6 e de um servidor atualizado.
+
+Os arquivos ficam disponíveis para participantes autenticados no mesmo canal por até 30 minutos. Reiniciar o servidor apaga os arquivos. Salve no computador os anexos que quiser guardar.
+
 ## Chamadas privadas de voz
 
-A versão 1.4 permite selecionar alguém no mesmo canal e ligar. A pessoa aceita ou recusa; o microfone só abre após o aceite. Há controles de silenciar e encerrar, indicação de conexão e duração. Sair, trocar de canal ou perder a conexão encerra a chamada; o chat não religa sozinho. Use fones e os dispositivos padrão de áudio do Windows.
+O Wavecove permite selecionar alguém no mesmo canal e ligar. A pessoa aceita ou recusa; o microfone só abre após o aceite. Há controles de silenciar e encerrar, indicação de conexão e duração. Sair, trocar de canal ou perder a conexão encerra a chamada; o chat não religa sozinho. Use fones e os dispositivos padrão de áudio do Windows.
 
-O servidor deste projeto já está com TURN configurado. Em 17/11/2026, o diagnóstico nativo confirmou áudio sintético nos dois sentidos usando relay da Cloudflare. Falta a verificação humana com microfones e computadores em redes diferentes. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md), [instruções de uso](docs/CHAMADAS-DE-VOZ.txt) e [evidências de validação](docs/VALIDACAO-1.4.md). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale 1.4 nos dois computadores; versões anteriores continuam compatíveis para texto. Instalações próprias sem TURN configurado mantêm o texto funcionando e informam voz indisponível.
+O servidor deste projeto já está com TURN configurado. Em 17/11/2026, o diagnóstico nativo confirmou áudio sintético nos dois sentidos usando relay da Cloudflare. Falta a verificação humana com microfones e computadores em redes diferentes. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md), [instruções de uso](docs/CHAMADAS-DE-VOZ.txt) e [evidências de validação](docs/VALIDACAO-1.4.md). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale o Wavecove nos dois computadores. Clientes 1.4 também podem participar de chamadas. Instalações próprias sem TURN configurado mantêm o texto funcionando e informam voz indisponível.
 
 O WebRTC nativo é fornecido por [webrtc-java 1.0.1](https://github.com/devopvoid/webrtc-java). Os JARs distribuídos mantêm `META-INF/LICENSE`, `META-INF/NOTICE` e as licenças dos componentes nativos em `META-INF/licenses/`.
 

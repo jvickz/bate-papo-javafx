@@ -6,18 +6,31 @@ import javafx.collections.*;
 import javafx.geometry.*;
 import javafx.scene.*;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 
 public final class ChatApp extends Application {
+    private static final String APP_NAME = "Wavecove";
+    private static final String TAGLINE = "Outras margens. A mesma conversa.";
+    private static final Image APP_ICON = new Image(Objects.requireNonNull(
+            ChatApp.class.getResource("/wavecove.png")).toExternalForm());
+
     private final BorderPane content = new BorderPane();
     private final Label status = label("Desconectado", "pill");
     private final Label error = label("", "error");
@@ -25,10 +38,13 @@ public final class ChatApp extends Application {
     private final TextField nickname = new TextField();
     private final TextField server = new TextField();
     private final PasswordField accessCode = new PasswordField();
-    private final Button join = new Button("Entrar na conversa  →");
+    private final Button join = new Button("Entrar");
     private final Button cancel = new Button("Cancelar conexão");
     private final TextArea composer = new TextArea();
     private final Button send = new Button("Enviar  →");
+    private final Button attach = new Button("Anexar");
+    private boolean attachmentsReady;
+    private boolean transferring;
     private final ObservableList<Line> history = FXCollections.observableArrayList();
     private final ListView<Line> messages = new ListView<>(history);
     private final ListView<String> participants = new ListView<>();
@@ -62,6 +78,8 @@ public final class ChatApp extends Application {
     private boolean stopped;
     private final VoicePanel voicePanel = new VoicePanel();
     private final VoiceController voice;
+    private VBox sidebar;
+    private VBox heading;
 
     public ChatApp() {
         this(new Supplier<>() {
@@ -81,11 +99,19 @@ public final class ChatApp extends Application {
         voicePanel.bind(voice);
     }
 
-    record Line(String id, String name, String text, String time, String delivery) {}
+    record Line(String id, String name, String text, String time, String delivery, boolean attachment) {
+        Line(String id, String name, String text, String time, String delivery) {
+            this(id, name, text, time, delivery, false);
+        }
+    }
 
     @Override public void start(Stage stage) {
         this.stage = stage;
-        Font.loadFont(Objects.requireNonNull(getClass().getResource("/fonts/VT323-Regular.ttf")).toExternalForm(), 22);
+        try (var font = Objects.requireNonNull(getClass().getResourceAsStream("/fonts/VT323-Regular.ttf"))) {
+            Font.loadFont(font, 22);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
         nickname.setId("nickname"); nickname.setPromptText("Como você quer ser chamado?");
         nickname.setText(suggestNickname());
         server.setId("server"); server.setPromptText("https://seu-servidor.onrender.com");
@@ -98,6 +124,7 @@ public final class ChatApp extends Application {
         counter.setId("messageCounter");
         composer.textProperty().addListener((o, old, next) -> refreshSend());
         accessCode.setId("accessCode"); accessCode.setPromptText("Código compartilhado com você");
+        error.managedProperty().bind(error.textProperty().isNotEmpty());
         join.setId("join"); join.getStyleClass().add("primary"); join.setMaxWidth(Double.MAX_VALUE);
         join.setOnAction(e -> enter()); accessCode.setOnAction(e -> enter());
         cancel.setOnAction(e -> leave()); cancel.setVisible(false); cancel.setManaged(false);
@@ -107,6 +134,11 @@ public final class ChatApp extends Application {
         send.setId("send"); send.getStyleClass().add("primary"); send.setOnAction(e -> sendMessage());
         send.setMinWidth(Region.USE_PREF_SIZE); composer.setMinWidth(0);
         send.setDisable(true);
+        attach.setId("attach");
+        attach.getStyleClass().add("secondary-button");
+        attach.setTooltip(new Tooltip("Enviar foto JPG/PNG ou vídeo MP4 ao canal"));
+        attach.setOnAction(e -> chooseAttachment());
+        refreshAttachmentButton();
         messages.setId("messages"); messages.getStyleClass().add("messages");
         messages.setCellFactory(view -> new MessageCell());
         messages.setPlaceholder(label("Sua próxima conversa começa com um oi.\nAs mensagens aparecem aqui.", "muted"));
@@ -119,7 +151,8 @@ public final class ChatApp extends Application {
         participants.getSelectionModel().selectedItemProperty().addListener((o, before, next) ->
                 voice.participant(myName, next));
 
-        var shell = new BorderPane(); shell.setLeft(sidebar()); shell.setCenter(content);
+        sidebar = sidebar();
+        var shell = new BorderPane(); shell.setLeft(sidebar); shell.setCenter(content);
         shell.getStyleClass().add("terminal-shell");
         var root = new StackPane(backdrop, shell);
         motion.setId("motionToggle"); motion.getStyleClass().add("motion-toggle");
@@ -131,18 +164,36 @@ public final class ChatApp extends Application {
         });
         channelHeading.setId("channelHeading"); channelHeading.setMaxWidth(300); channelHeading.setMinWidth(0);
         conversationInfo.setId("conversationInfo"); conversationInfo.setText("Entre e convide alguém para conversar");
-        var heading = new VBox(4, channelHeading, conversationInfo); heading.setMinWidth(0);
+        heading = new VBox(4, channelHeading, conversationInfo); heading.setMinWidth(0);
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var header = new HBox(12, heading, spacer, motion, status); header.setAlignment(Pos.CENTER_LEFT); header.getStyleClass().add("header");
         content.setTop(header); showLogin();
         var scene = new Scene(root, 1080, 760); scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/chat.css")).toExternalForm());
-        stage.setScene(scene); stage.setTitle("Bate-papo"); stage.setMinWidth(900); stage.setMinHeight(720);
+        stage.getIcons().add(APP_ICON);
+        stage.setScene(scene); stage.setTitle(APP_NAME); stage.setMinWidth(900); stage.setMinHeight(720);
         stage.iconifiedProperty().addListener((o, before, after) -> refreshMotion());
         stage.showingProperty().addListener((o, before, after) -> refreshMotion());
         stage.setOnCloseRequest(e -> stop()); stage.show();
     }
+    private static HBox brand(String style, int iconSize) {
+        var icon = new ImageView(APP_ICON);
+        icon.setFitWidth(iconSize);
+        icon.setFitHeight(iconSize);
+        icon.setSmooth(false);
+        var row = new HBox(8, icon, label(APP_NAME, style));
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private void showRoomControls(boolean visible) {
+        for (var control : List.of(sidebar, heading, motion)) {
+            control.setVisible(visible);
+            control.setManaged(visible);
+        }
+    }
+
     private VBox sidebar() {
-        var subtitle = label("OUTRAS MARGENS.\nA MESMA CONVERSA.", "muted");
+        var subtitle = label(TAGLINE, "muted"); subtitle.setWrapText(true);
         channels.setId("channels"); channels.getStyleClass().add("channel-list"); channels.setFixedCellSize(28);
         channels.setPrefHeight(116); channels.setMinHeight(68); channels.setDisable(true);
         channels.setPlaceholder(label("Entre para ver canais", "muted"));
@@ -171,8 +222,8 @@ public final class ChatApp extends Application {
         var another = new Button("OUTRA JANELA"); another.setId("openTestWindow"); another.getStyleClass().add("secondary-button"); another.setMaxWidth(Double.MAX_VALUE);
         another.setTooltip(new Tooltip("Abrir uma segunda sessão para testar uma conversa"));
         another.setOnAction(e -> { var other = new ChatApp(); other.start(new Stage()); other.server.setText(server.getText()); });
-        var box = new VBox(12, label("bate-papo_", "brand"), subtitle, new Separator(), label("[ CANAIS ]", "eyebrow"), channels, createRow,
-                peopleCount, participants, spacer, copyInvite, another, label("WINDOWS / v1.4", "muted"));
+        var box = new VBox(12, brand("brand", 24), subtitle, new Separator(), label("CANAIS", "eyebrow"), channels, createRow,
+                peopleCount, participants, spacer, copyInvite, another);
         box.getStyleClass().add("sidebar"); box.setPrefWidth(224); return box;
     }
     private void createChannel() {
@@ -199,28 +250,30 @@ public final class ChatApp extends Application {
         }
         currentChannel = next; channelHeading.setText("#" + next); channelHeading.setTooltip(new Tooltip("#" + next));
         selectCurrentChannel();
-        if (inRoom) stage.setTitle("Bate-papo — " + myName + " · #" + currentChannel);
+        if (inRoom) stage.setTitle(APP_NAME + " — " + myName + " · #" + currentChannel);
     }
     private void showLogin() {
         refreshMotion();
+        showRoomControls(false);
         content.setBottom(null);
-        var explanation = label("Seu apelido já está pronto. Cole o código recebido e entre.\nA outra pessoa usa o mesmo servidor e código.", "muted");
-        explanation.setWrapText(true);
         var suggest = new Button("Gerar outro"); suggest.setId("suggestNickname"); suggest.getStyleClass().add("secondary-button");
         suggest.disableProperty().bind(nickname.disabledProperty());
         suggest.setOnAction(e -> { nickname.setText(suggestNickname()); error.setText(""); nickname.requestFocus(); });
         var nicknameRow = new HBox(8, nickname, suggest); HBox.setHgrow(nickname, Priority.ALWAYS); nickname.setMinWidth(0);
-        var nicknameLabel = label("SEU APELIDO", "field-label"); nicknameLabel.setLabelFor(nickname);
+        var nicknameLabel = label("Apelido", "field-label"); nicknameLabel.setLabelFor(nickname);
         var serverOptions = new VBox(10, field("ENDEREÇO DO SERVIDOR", server), checkServer, checkResult);
         var advanced = new TitledPane("Servidor e diagnóstico de conexão", serverOptions); advanced.setId("serverOptions");
         advanced.setExpanded(false); advanced.setAnimated(false);
         error.setWrapText(true);
-        var card = new VBox(14, label("[ INICIAR SESSÃO ]", "eyebrow"), label("Olá, visitante_", "hero"), explanation,
-                new VBox(nicknameLabel, nicknameRow), field("CÓDIGO DE ACESSO", accessCode),
-                error, join, cancel, advanced, label("Quem tem o código pode entrar. Seu código não é salvo.", "muted"));
-        card.getStyleClass().add("card"); card.setMaxWidth(560); card.setMaxHeight(Region.USE_PREF_SIZE);
+        var card = new VBox(12, brand("hero", 40), label(TAGLINE, "muted"),
+                new VBox(nicknameLabel, nicknameRow), field("Código de acesso", accessCode),
+                error, join, cancel, advanced);
+        card.getStyleClass().add("card"); card.setMaxWidth(394); card.setMaxHeight(Region.USE_PREF_SIZE);
         card.setMinHeight(Region.USE_PREF_SIZE);
-        var center = new StackPane(card); center.setPadding(new Insets(24)); center.setMinHeight(Region.USE_PREF_SIZE);
+        var center = new StackPane(card);
+        center.setAlignment(Pos.CENTER_LEFT);
+        center.setPadding(new Insets(24, 36, 24, 60));
+        center.setMinHeight(Region.USE_PREF_SIZE);
         var scroll = new ScrollPane(center); scroll.setId("loginScroll"); scroll.getStyleClass().add("login-scroll");
         scroll.setFitToWidth(true); scroll.setFitToHeight(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         content.setCenter(scroll);
@@ -247,28 +300,32 @@ public final class ChatApp extends Application {
     }
     private void showChat() {
         inRoom = true; cancel.setVisible(false); cancel.setManaged(false); accessCode.clear();
+        showRoomControls(true);
         refreshMotion();
         var feed = new BorderPane(messages); feed.setBottom(newMessages); BorderPane.setAlignment(newMessages, Pos.CENTER);
         content.setCenter(feed); Platform.runLater(this::watchScroll);
-        var row = new HBox(12, composer, send); row.setAlignment(Pos.CENTER); HBox.setHgrow(composer, Priority.ALWAYS);
+        var row = new HBox(12, attach, composer, send); row.setAlignment(Pos.CENTER); HBox.setHgrow(composer, Priority.ALWAYS);
         var leave = new Button("Sair da sala"); leave.setOnAction(e -> leave());
         var tip = label("Enter envia · Shift+Enter quebra a linha", "muted");
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var footer = new HBox(10, tip, spacer, counter, leave); footer.setAlignment(Pos.CENTER_LEFT);
         hint.setWrapText(true);
         var bottom = new VBox(8, voicePanel, row, hint, footer); bottom.getStyleClass().add("composer"); content.setBottom(bottom);
-        stage.setTitle("Bate-papo — " + myName + " · #" + currentChannel); composer.requestFocus();
+        stage.setTitle(APP_NAME + " — " + myName + " · #" + currentChannel); composer.requestFocus();
     }
     private void leave() {
         voice.connection(false, false);
+        attachmentsReady = transferring = false;
         ++epoch; if (connection != null) { connection.close(); connection = null; }
         inRoom = false; history.clear(); participants.getItems().clear(); composer.clear(); accessCode.clear(); error.setText("");
         updatingChannels = true; channels.getItems().clear(); updatingChannels = false; confirmChannel("geral");
         channelHistory.clear(); drafts.clear(); history.clear(); composer.clear(); conversationInfo.setText("Entre e convide alguém para conversar");
-        cancel.setVisible(false); cancel.setManaged(false); onState("disconnected"); showLogin(); stage.setTitle("Bate-papo");
+        cancel.setVisible(false); cancel.setManaged(false); onState("disconnected"); stage.setTitle(APP_NAME);
     }
     private void onState(String state) {
         online = state.equals("connected");
+        if (!online && !state.equals("switching")) attachmentsReady = false;
+        refreshAttachmentButton();
         voice.connection(online, state.equals("switching"));
         refreshMotion();
         status.setText(switch (state) { case "connected" -> "●  Conectado"; case "connecting" -> "Conectando…"; case "reconnecting" -> "Reconectando…"; case "switching" -> "Trocando canal…"; default -> "Desconectado"; });
@@ -291,6 +348,7 @@ public final class ChatApp extends Application {
                 if (moved && e.text() != null) append(new Line(null, null, e.text(), null, null));
             }
             case "joined" -> { confirmChannel(e.channel()); channelName.clear(); }
+            case "attachments" -> { attachmentsReady = true; refreshAttachmentButton(); }
             case "channels" -> {
                 if (e.users() != null) { updatingChannels = true; channels.getItems().setAll(e.users()); updatingChannels = false; selectCurrentChannel(); }
             }
@@ -309,6 +367,10 @@ public final class ChatApp extends Application {
             }
             case "connection" -> { if (inRoom) hint.setText(e.text()); else error.setText(e.text()); }
             case "system" -> append(new Line(null, null, e.text(), null, null));
+            case "attachment" -> {
+                backdrop.pulse();
+                append(new Line(e.id(), e.name(), e.text(), e.time(), "", true));
+            }
             case "pending", "message" -> {
                 backdrop.pulse();
                 String delivery = e.type().equals("pending") ? "Enviando…" : Objects.equals(e.name(), myName) ? "Confirmada pelo servidor" : "";
@@ -358,6 +420,86 @@ public final class ChatApp extends Application {
         try { connection.send(composer.getText()); composer.clear(); hint.setText(""); composer.requestFocus(); }
         catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
     }
+
+    private void refreshAttachmentButton() {
+        attach.setDisable(!online || !attachmentsReady || transferring);
+        attach.setText(transferring ? "Aguarde…" : "Anexar");
+        attach.getTooltip().setText(online && !attachmentsReady
+                ? "Este servidor ainda não oferece anexos."
+                : "Enviar foto JPG/PNG (5 MB) ou vídeo MP4 (15 MB) ao canal");
+    }
+
+    private void chooseAttachment() {
+        if (attach.isDisabled()) return;
+        long session = epoch;
+        String channel = currentChannel;
+        var chooser = new FileChooser();
+        chooser.setTitle("Enviar anexo para #" + channel);
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Fotos e vídeos", "*.jpg", "*.jpeg", "*.png", "*.mp4"));
+        var file = chooser.showOpenDialog(stage);
+        if (file == null || session != epoch || !channel.equals(currentChannel)) return;
+        try {
+            var transfer = connection.attachmentTransfer(channel);
+            var upload = transfer.upload(file.toPath());
+            beginTransfer("Enviando " + file.getName() + "…");
+            upload.whenComplete((unused, failure) -> Platform.runLater(() ->
+                    finishTransfer(session, channel, failure, "Anexo enviado.", "Não foi possível enviar o anexo.")));
+        } catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
+    }
+
+    private void beginTransfer(String message) {
+        transferring = true;
+        refreshAttachmentButton();
+        hint.setText(message);
+    }
+
+    private void finishTransfer(long session, String channel, Throwable failure, String success, String fallback) {
+        if (epoch != session || stopped) return;
+        transferring = false;
+        refreshAttachmentButton();
+        if (!channel.equals(currentChannel)) return;
+        if (failure instanceof CompletionException) failure = failure.getCause();
+        hint.setText(failure == null ? success
+                : failure instanceof IllegalArgumentException ? failure.getMessage() : fallback);
+    }
+
+    private void receiveAttachment(Line line, ImageView preview) {
+        if (!online || transferring || connection == null) return;
+        long session = epoch;
+        String channel = currentChannel;
+        try {
+            Attachment kind = Attachment.forName(line.text());
+            var transfer = connection.attachmentTransfer(channel);
+            if (preview == null) {
+                var chooser = new FileChooser();
+                chooser.setTitle("Salvar anexo");
+                chooser.setInitialFileName(line.text());
+                var destination = chooser.showSaveDialog(stage);
+                if (destination == null || session != epoch || !channel.equals(currentChannel)) return;
+                beginTransfer("Baixando " + line.text() + "…");
+                transfer.download(line.id(), kind).thenAcceptAsync(bytes -> {
+                    try { Files.write(destination.toPath(), bytes); }
+                    catch (IOException ex) { throw new CompletionException(ex); }
+                }).whenComplete((unused, failure) -> Platform.runLater(() -> finishTransfer(session, channel,
+                        failure, "Arquivo salvo.", "Não foi possível salvar o anexo.")));
+                return;
+            }
+            beginTransfer("Carregando foto…");
+            transfer.download(line.id(), kind).thenApplyAsync(bytes -> {
+                var photo = new Image(new ByteArrayInputStream(bytes), 380, 260, true, true);
+                if (photo.isError()) throw new IllegalArgumentException("Não foi possível visualizar a foto.");
+                return photo;
+            }).whenComplete((photo, failure) -> Platform.runLater(() -> {
+                if (failure == null && epoch == session && channel.equals(currentChannel)) {
+                    preview.setImage(photo);
+                    preview.setManaged(true);
+                    preview.setVisible(true);
+                }
+                finishTransfer(session, channel, failure, "", "Não foi possível carregar a foto.");
+            }));
+        } catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
+    }
     private static Label label(String text, String css) { var label = new Label(text); label.getStyleClass().add(css); return label; }
     private static VBox field(String title, Control field) {
         var label = label(title, "field-label"); label.setLabelFor(field); return new VBox(0, label, field);
@@ -385,9 +527,31 @@ public final class ChatApp extends Application {
             try { if (line.time() != null) time = DateTimeFormatter.ofPattern("HH:mm").format(Instant.parse(line.time()).atZone(ZoneId.systemDefault())) + " · "; }
             catch (DateTimeException ignored) { }
             var bubble = new VBox(5, label(own ? "Você" : line.name(), "sender"), text, label(time + Objects.toString(line.delivery(), ""), "message-meta"));
+            if (line.attachment()) {
+                Attachment kind = Attachment.forName(line.text());
+                var actions = new HBox(8);
+                if (kind.photo()) {
+                    var preview = new ImageView();
+                    preview.setPreserveRatio(true);
+                    preview.fitWidthProperty().bind(messages.widthProperty().subtract(160).multiply(0.8));
+                    preview.setFitHeight(260);
+                    preview.setVisible(false);
+                    preview.setManaged(false);
+                    var show = new Button("Ver foto");
+                    show.getStyleClass().add("secondary-button");
+                    show.setOnAction(e -> receiveAttachment(line, preview));
+                    actions.getChildren().add(show);
+                    bubble.getChildren().add(preview);
+                }
+                var save = new Button(kind.photo() ? "Salvar foto" : "Baixar vídeo");
+                save.getStyleClass().add("secondary-button");
+                save.setOnAction(e -> receiveAttachment(line, null));
+                actions.getChildren().add(save);
+                bubble.getChildren().add(actions);
+            }
             var copy = new MenuItem("Copiar mensagem"); copy.setOnAction(e -> copyText(line.text()));
             var menu = new ContextMenu(copy);
-            if (own) {
+            if (own && !line.attachment()) {
                 var recover = new MenuItem("Editar novamente"); recover.setOnAction(e -> recover(line.text())); menu.getItems().add(recover);
                 if (Set.of("Não enviada", "Entrega não confirmada").contains(Objects.toString(line.delivery(), ""))) {
                     var recoverButton = new Button("Recuperar texto"); recoverButton.getStyleClass().add("secondary-button");
@@ -418,7 +582,7 @@ public final class ChatApp extends Application {
     }
     private void copyInvite() {
         String address = Protocol.serverUri(server.getText()).toString();
-        copyText("Vamos conversar no Bate-papo!\nServidor: " + address + "\nCanal: " + currentChannel
+        copyText("Vamos conversar no " + APP_NAME + "!\nServidor: " + address + "\nCanal: " + currentChannel
                 + "\nUse um apelido diferente. O código de acesso deve ser compartilhado separadamente."
                 + "\nAbra o aplicativo, entre e selecione #" + currentChannel + ".");
         hint.setText("Convite copiado com servidor e canal. Compartilhe o código de acesso em particular.");

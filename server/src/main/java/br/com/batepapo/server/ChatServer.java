@@ -1,6 +1,7 @@
 package br.com.batepapo.server;
 
 import br.com.batepapo.protocol.Protocol;
+import br.com.batepapo.protocol.Attachment;
 import io.javalin.Javalin;
 import java.time.Duration;
 import java.util.concurrent.*;
@@ -17,6 +18,7 @@ public final class ChatServer implements AutoCloseable {
         this.port = port;
         this.turn = turn;
         room = new Room(token, turn, System::nanoTime);
+        var attachments = new AttachmentRoutes(room);
         app = Javalin.create(config -> {
             config.startup.showJavalinBanner = false;
             config.startup.showOldJavalinVersionWarning = false;
@@ -27,6 +29,8 @@ public final class ChatServer implements AutoCloseable {
                 factory.setIdleTimeout(Duration.ofSeconds(60));
             });
             config.routes.get("/health", ctx -> ctx.contentType("application/json").result("{\"status\":\"ok\"}"));
+            config.routes.post(Attachment.PATH, attachments::upload);
+            config.routes.get(Attachment.PATH + "/{id}", attachments::download);
             config.routes.ws("/chat", ws -> {
                 ws.onConnect(ctx -> room.open(ctx.sessionId, new SocketPeer(ctx.session)));
                 ws.onMessage(ctx -> room.receive(ctx.sessionId, ctx.message()));

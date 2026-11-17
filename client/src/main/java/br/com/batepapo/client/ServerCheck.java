@@ -82,7 +82,7 @@ public final class ServerCheck implements AutoCloseable {
                 return new Result(true, "Servidor disponível. Use o mesmo endereço e código nos dois computadores.");
             }
         } catch (IOException ignored) { }
-        return new Result(false, "Esse endereço respondeu, mas não foi identificado como servidor do Bate-papo. Confira o endereço e tente novamente.");
+        return new Result(false, "Esse endereço respondeu, mas não foi identificado como servidor do Wavecove. Confira o endereço e tente novamente.");
     }
 
     private static Result failureResult(Throwable failure) {

@@ -27,6 +27,7 @@ public final class ChatConnection implements AutoCloseable {
     private boolean wanted;
     private URI uri;
     private String name, token, resume;
+    private volatile String attachmentSession;
     private WebSocket socket;
     private volatile long attempt;
     private long lastTraffic;
@@ -95,6 +96,13 @@ public final class ChatConnection implements AutoCloseable {
     }
     public void createChannel(String name) { changeChannel("create", name); }
     public void joinChannel(String name) { changeChannel("join", name); }
+
+    AttachmentTransfer attachmentTransfer(String expectedChannel) {
+        String session = attachmentSession;
+        if (!connected || switching || session == null || !channel.equals(expectedChannel))
+            throw new IllegalStateException("Entre no canal para usar os anexos.");
+        return new AttachmentTransfer(http, uri, session, expectedChannel);
+    }
     /** Private signaling is never queued for replay after a reconnect or rendered as chat text. */
     public void voice(Event event) {
         if (event == null || !Set.of("callinvite", "callaccept", "callreject", "callend", "callsignal", "callconnected").contains(event.type()))
@@ -161,6 +169,20 @@ public final class ChatConnection implements AutoCloseable {
                 events.accept(event); states.accept("connected");
             }
             case "channels" -> { if (connected) events.accept(event); }
+            case "attachments" -> {
+                if (connected && Attachment.validId(event.session())) {
+                    attachmentSession = event.session();
+                    events.accept(Event.of("attachments", null));
+                }
+            }
+            case "attachment" -> {
+                if (connected && channel.equals(event.channel()) && Attachment.validId(event.id())
+                        && event.name() != null) {
+                    try { Attachment.forName(event.text()); }
+                    catch (IllegalArgumentException ignored) { return; }
+                    events.accept(event);
+                }
+            }
             case "voice", "callringing", "callincoming", "callready", "callsignal", "callended", "callerror" -> {
                 if (connected) events.accept(event);
             }
@@ -192,6 +214,7 @@ public final class ChatConnection implements AutoCloseable {
     private void lost(long g, long a, Throwable failure) {
         if (!active(g, a)) return;
         attempt++; connected = false;
+        attachmentSession = null;
         if (socket != null) { socket.abort(); socket = null; }
         clearPending(); clearChange(); states.accept("reconnecting");
         long delay = Math.min(30, 1L << Math.min(5, retries++));
@@ -213,7 +236,7 @@ public final class ChatConnection implements AutoCloseable {
             if (failure instanceof HttpTimeoutException || failure instanceof TimeoutException)
                 return "O servidor demorou para responder. Confira sua internet ou aguarde o serviço iniciar.";
             if (failure instanceof IllegalArgumentException)
-                return "O servidor enviou uma resposta inválida. Confira o endereço do Bate-papo.";
+                return "O servidor enviou uma resposta inválida. Confira o endereço do Wavecove.";
         }
         return "Não foi possível manter a conexão com o servidor. Confira sua internet ou aguarde o serviço iniciar.";
     }
@@ -222,7 +245,7 @@ public final class ChatConnection implements AutoCloseable {
         execute(() -> { stop(); states.accept("disconnected"); });
     }
     private void stop() {
-        wanted = false; connected = false; attempt++;
+        wanted = false; connected = false; attachmentSession = null; attempt++;
         if (socket != null) { socket.abort(); socket = null; }
         clearPending(); clearChange(); token = null; resume = null;
     }
@@ -239,7 +262,8 @@ public final class ChatConnection implements AutoCloseable {
             execute(() -> {
                 if (!active(g, a)) { ws.abort(); return; }
                 socket = ws; lastTraffic = System.nanoTime();
-                write(new Event("hello", "channels-v1", name, "voice-v1", token, resume, null, null, channel), g, a);
+                write(new Event("hello", "channels-v1", name, "voice-v1", token, resume,
+                        List.of(Attachment.CAPABILITY), null, channel), g, a);
                 ws.request(1);
             });
         }

@@ -1,6 +1,6 @@
-BATE-PAPO 1.4 — CHAMADA PRIVADA
+WAVECOVE 1.6 — CHAMADA PRIVADA
 
-Os dois participantes precisam usar a versão 1.4, o mesmo servidor,
+Os dois participantes precisam usar o Wavecove ou o cliente 1.4, o mesmo servidor,
 o mesmo código de acesso e o mesmo canal. O servidor precisa ter
 o serviço de voz configurado pelo proprietário da sala.
 
