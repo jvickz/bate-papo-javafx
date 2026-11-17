@@ -6,3 +6,4 @@ Ruling: executar na pasta nova do usuário, em branch local própria — não ex
 Ruling: adaptar scripts de bookkeeping Unix a registro PowerShell/documento — ambiente Windows sem Bash confirmado — sem alteração do produto.
 Task 1: complete — ProtocolTest RED (4 casos sem implementação), GREEN 4/4; JDK 21.0.13 e Maven 3.10.1 verificados por checksum. Ferramentas movidas ao cache local AppData para evitar lentidão do Google Drive.
 Task 2: complete — ChatServerTest RED 7 casos sem servidor; GREEN 7/7 com WebSockets reais, mais ProtocolTest 4/4. Limites de transporte, autenticação e heartbeat implementados.
+Task 3: complete — ChatConnectionTest RED/GREEN 5/5; ChatAppTest RED/GREEN 1/1 com controles JavaFX e servidor real. Inspeção visual e executável jpackage iniciados. Task 4: MSI e ZIP gerados, pacote aberto sem Java no PATH; validação Docker e revisão pendentes.

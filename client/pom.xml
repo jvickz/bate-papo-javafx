@@ -1,0 +1,13 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+  <parent><groupId>br.com.batepapo</groupId><artifactId>bate-papo</artifactId><version>1.0.0</version></parent>
+  <artifactId>client</artifactId>
+  <dependencies>
+    <dependency><groupId>br.com.batepapo</groupId><artifactId>protocol</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>org.openjfx</groupId><artifactId>javafx-controls</artifactId><version>${javafx.version}</version></dependency>
+    <dependency><groupId>br.com.batepapo</groupId><artifactId>server</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>3.4.2</version><configuration><archive><manifest><addClasspath>true</addClasspath><classpathPrefix>lib/</classpathPrefix><mainClass>br.com.batepapo.client.Launcher</mainClass></manifest></archive></configuration></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-dependency-plugin</artifactId><version>3.8.1</version><executions><execution><id>runtime-libs</id><phase>package</phase><goals><goal>copy-dependencies</goal></goals><configuration><includeScope>runtime</includeScope><outputDirectory>${project.build.directory}/lib</outputDirectory></configuration></execution></executions></plugin>
+  </plugins></build>
+</project>

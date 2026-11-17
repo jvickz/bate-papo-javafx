@@ -1,0 +1,30 @@
+BATE-PAPO — WINDOWS x64
+
+1. Se recebeu BatePapo-1.0.0.msi, abra o instalador e siga as etapas.
+   Se recebeu um ZIP, extraia tudo antes de abrir BatePapo.exe.
+   Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
+   Não precisa instalar Java separadamente.
+
+2. Abra o Bate-papo. Digite seu apelido, o endereço HTTPS do servidor
+   e o código de acesso compartilhado com você.
+
+3. A outra pessoa abre o aplicativo com outro apelido, o MESMO servidor
+   e o MESMO código. Quando aparecer Conectado, vocês podem conversar.
+
+Enter envia. Shift+Enter quebra a linha.
+Confirmada pelo servidor NÃO significa lida pela outra pessoa.
+Entrega não confirmada significa que a mensagem pode ter chegado.
+
+Quem conhece o código pode entrar. Apelidos não são identidades verificadas.
+O código não é salvo. HTTPS/WSS protege o transporte; o servidor processa
+as mensagens. Não há criptografia de ponta a ponta nesta versão.
+
+O histórico fica apenas nesta sessão, limitado a 500 itens. Ao sair da sala
+ou fechar o aplicativo, ele é apagado. Mensagens enviadas enquanto você
+estiver desconectado não serão recuperadas.
+
+O programa precisa de um servidor publicado para conversar pela internet.
+localhost serve apenas para testes no mesmo computador.
+Se o servidor gratuito estiver inativo, a primeira conexão pode demorar.
+
+Código-fonte, compilação e publicação: README.md na pasta do projeto.

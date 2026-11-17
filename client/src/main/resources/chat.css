@@ -1,0 +1,42 @@
+.root { -fx-font-family: "Segoe UI"; -fx-font-size: 14px; -fx-background-color: #f5f7f7; -fx-text-fill: #19332f; }
+.label { -fx-text-fill: #19332f; }
+.sidebar { -fx-background-color: #123c35; -fx-padding: 32 24; -fx-spacing: 20; }
+.brand { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white; }
+.sidebar .muted { -fx-text-fill: #b3d0c8; -fx-font-size: 13px; }
+.eyebrow { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5c7972; }
+.sidebar .eyebrow { -fx-text-fill: #8db4a9; }
+.room-tile { -fx-background-color: #28554a; -fx-background-radius: 12; -fx-padding: 16; -fx-spacing: 6; }
+.room-tile .label { -fx-text-fill: #f0fbf6; }
+.room-title { -fx-font-weight: bold; }
+.sidebar .list-view { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; }
+.sidebar .list-cell { -fx-background-color: transparent; -fx-text-fill: #ddede7; -fx-padding: 9 0; }
+.sidebar .list-cell:filled:selected { -fx-background-color: #28554a; -fx-background-radius: 6; }
+.header { -fx-padding: 24 32; -fx-background-color: white; -fx-border-color: transparent transparent #e2eae6 transparent; }
+.title { -fx-font-size: 22px; -fx-font-weight: bold; }
+.muted { -fx-text-fill: #6b817a; -fx-font-size: 12px; }
+.hero { -fx-font-size: 30px; -fx-font-weight: bold; }
+.card { -fx-background-color: white; -fx-background-radius: 18; -fx-border-color: #e0e9e4; -fx-border-radius: 18; -fx-padding: 30; -fx-spacing: 15; }
+.field-label { -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 0 0 6 0; }
+.text-field, .text-area { -fx-background-color: #f8faf9; -fx-border-color: #d9e4df; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 11 13; -fx-prompt-text-fill: #789086; -fx-text-fill: #19332f; }
+.text-field:focused, .text-area:focused { -fx-border-color: #238b70; -fx-background-color: white; }
+.text-area .content { -fx-background-color: transparent; }
+.button { -fx-cursor: hand; -fx-padding: 12 20; -fx-background-radius: 8; -fx-font-weight: bold; -fx-background-color: #e8efec; -fx-text-fill: #245244; }
+.button:hover { -fx-background-color: #d8e7e0; }
+.button:focused { -fx-border-color: #368c71; -fx-border-radius: 8; }
+.primary { -fx-background-color: #17785c; -fx-text-fill: white; }
+.primary:hover { -fx-background-color: #10664e; }
+.button:disabled { -fx-opacity: 0.45; }
+.pill { -fx-background-color: #edf2f0; -fx-background-radius: 20; -fx-padding: 7 12; -fx-font-size: 12px; -fx-text-fill: #647a71; }
+.pill.online { -fx-background-color: #e0f3e8; -fx-text-fill: #1b7851; }
+.error { -fx-text-fill: #ad3e35; -fx-font-size: 12px; }
+.messages { -fx-background-color: transparent; -fx-padding: 16 22; -fx-border-width: 0; }
+.messages .list-cell { -fx-background-color: transparent; -fx-padding: 6 8; }
+.bubble { -fx-background-color: white; -fx-background-radius: 3 14 14 14; -fx-padding: 12 16; -fx-spacing: 6; -fx-border-color: #e2eae6; -fx-border-radius: 3 14 14 14; }
+.bubble.own { -fx-background-color: #dff2e8; -fx-border-color: #d0e9dc; -fx-background-radius: 14 3 14 14; -fx-border-radius: 14 3 14 14; }
+.sender { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #28725a; }
+.message-text { -fx-font-size: 14px; }
+.message-meta { -fx-font-size: 10px; -fx-text-fill: #688277; }
+.system-message { -fx-font-size: 11px; -fx-text-fill: #788e85; -fx-padding: 7; }
+.composer { -fx-background-color: white; -fx-padding: 18 28; -fx-spacing: 8; -fx-border-color: #e2eae6 transparent transparent transparent; }
+.scroll-bar { -fx-background-color: transparent; }
+.scroll-bar .thumb { -fx-background-color: #cadbd2; -fx-background-radius: 5; }

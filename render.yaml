@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: bate-papo-java
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: CHAT_ACCESS_TOKEN
+        generateValue: true

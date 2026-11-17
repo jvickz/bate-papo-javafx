@@ -1,7 +1,7 @@
 # Bate-papo online para Windows — proposta de design
 
 Data: 17/11/2026
-Estado: proposta para aprovação; implementação ainda não iniciada.
+Estado: aprovado pelo usuário em 17/11/2026; implementação em andamento.
 
 ## Intenção e escolhas confirmadas
 
