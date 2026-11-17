@@ -44,7 +44,6 @@ public final class ChatApp extends Application {
     private final Label formTitle = label("", "form-title");
     private final Label passwordHelp = label("Use de 12 a 128 caracteres.", "field-help");
     private final Label identity = label("", "muted");
-    private final ToggleButton authMotion = new ToggleButton();
     private HBox roomHeader;
     private TitledPane advanced;
     private boolean registering;
@@ -76,7 +75,6 @@ public final class ChatApp extends Application {
     private boolean inRoom;
     private boolean online;
     private final PixelBackdrop backdrop = new PixelBackdrop();
-    private final ToggleButton motion = new ToggleButton("EFEITOS: ON");
     private final ServerCheck serverCheck = new ServerCheck();
     private final Label checkResult = label("Verifique o servidor antes de entrar, se precisar.", "connection-note");
     private final Button checkServer = new Button("Verificar servidor");
@@ -113,9 +111,9 @@ public final class ChatApp extends Application {
         voicePanel.bind(voice);
     }
 
-    record Line(String id, String name, String text, String time, String delivery, boolean attachment) {
+    record Line(String id, String name, String text, String time, String delivery, boolean attachment, String reference) {
         Line(String id, String name, String text, String time, String delivery) {
-            this(id, name, text, time, delivery, false);
+            this(id, name, text, time, delivery, false, null);
         }
     }
 
@@ -179,23 +177,12 @@ public final class ChatApp extends Application {
         var shell = new BorderPane(); shell.setLeft(sidebar); shell.setCenter(content);
         shell.getStyleClass().add("terminal-shell");
         var root = new StackPane(backdrop, shell);
-        motion.setId("motionToggle");
-        authMotion.setId("authMotion");
-        authMotion.selectedProperty().bindBidirectional(motion.selectedProperty());
-        motion.setSelected(!WindowsTitleBar.animationsEnabled());
-        for (var toggle : List.of(motion, authMotion)) {
-            toggle.getStyleClass().add("motion-toggle");
-        }
-        motion.selectedProperty().addListener((o, before, paused) -> updateMotionPreference());
-        updateMotionPreference();
-        StackPane.setAlignment(authMotion, Pos.TOP_RIGHT);
-        StackPane.setMargin(authMotion, new Insets(20, 24, 0, 0));
-        root.getChildren().add(authMotion);
+        backdrop.setPaused(!WindowsTitleBar.animationsEnabled());
         channelHeading.setId("channelHeading"); channelHeading.setMaxWidth(300); channelHeading.setMinWidth(0);
         conversationInfo.setId("conversationInfo"); conversationInfo.setText("Entre e convide alguém para conversar");
         var heading = new VBox(4, channelHeading, conversationInfo); heading.setMinWidth(0);
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        roomHeader = new HBox(12, heading, spacer, motion, status); roomHeader.setAlignment(Pos.CENTER_LEFT); roomHeader.getStyleClass().add("header");
+        roomHeader = new HBox(12, heading, spacer, status); roomHeader.setAlignment(Pos.CENTER_LEFT); roomHeader.getStyleClass().add("header");
         buildAccountScreen(); showLogin();
         var scene = new Scene(root, 1080, 760); scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/chat.css")).toExternalForm());
         stage.getIcons().add(APP_ICON);
@@ -219,8 +206,6 @@ public final class ChatApp extends Application {
     private void showRoomControls(boolean visible) {
         sidebar.setVisible(visible);
         sidebar.setManaged(visible);
-        authMotion.setVisible(!visible);
-        authMotion.setManaged(!visible);
         content.setTop(visible ? roomHeader : null);
     }
 
@@ -314,7 +299,7 @@ public final class ChatApp extends Application {
         var card = new VBox(14, brand("brand", 32), tabs, formTitle,
                 field("Nome de usuário", username), passwordRow, error, join, cancel, advanced);
         card.getStyleClass().add("card");
-        card.setMaxWidth(390);
+        card.setMaxWidth(408);
         card.setMaxHeight(Region.USE_PREF_SIZE);
         card.setMinHeight(Region.USE_PREF_SIZE);
         var center = new StackPane(card);
@@ -493,6 +478,21 @@ public final class ChatApp extends Application {
             }
             case "joined" -> { confirmChannel(e.channel()); channelName.clear(); }
             case "attachments" -> { attachmentsReady = true; refreshAttachmentButton(); }
+            case "retained" -> {
+                if (currentChannel.equals(e.channel())) {
+                    // Also remove withdrawals made while this client was offline or viewing another channel.
+                    var retained = new HashSet<>(e.users());
+                    history.removeIf(line -> line.reference() != null && !retained.contains(line.reference()));
+                }
+            }
+            case "deleted" -> {
+                if (currentChannel.equals(e.channel())) {
+                    boolean own = history.stream().anyMatch(line -> e.id().equals(line.reference()) && Objects.equals(myName, line.name()));
+                    history.removeIf(line -> e.id().equals(line.reference()));
+                    if (own) hint.setText("Mensagem apagada.");
+                }
+            }
+            case "deleteerror" -> hint.setText(e.text());
             case "channels" -> {
                 if (e.users() != null) { updatingChannels = true; channels.getItems().setAll(e.users()); updatingChannels = false; selectCurrentChannel(); }
             }
@@ -513,17 +513,21 @@ public final class ChatApp extends Application {
             case "system" -> append(new Line(null, null, e.text(), null, null));
             case "attachment" -> {
                 backdrop.pulse();
-                append(new Line(e.id(), e.name(), e.text(), e.time(), "", true));
+                append(new Line(e.id(), e.name(), e.text(), e.time(), "", true, e.session()));
             }
             case "pending", "message" -> {
                 backdrop.pulse();
                 String delivery = e.type().equals("pending") ? "Enviando…" : Objects.equals(e.name(), myName) ? "Confirmada pelo servidor" : "";
-                var line = new Line(e.id(), e.name(), e.text(), e.time(), delivery);
+                var line = new Line(e.id(), e.name(), e.text(), e.time(), delivery, false, e.session());
                 if (e.channel() != null && !currentChannel.equals(e.channel())) {
                     var saved = channelHistory.computeIfAbsent(e.channel(), key -> new ArrayList<>());
-                    saved.add(line); if (saved.size() > 500) saved.removeFirst(); break;
+                    saved.add(line); if (saved.size() > Protocol.CHANNEL_HISTORY_LIMIT) saved.removeFirst(); break;
                 }
-                int existing = index(e.id(), e.name()); if (existing >= 0) history.set(existing, line); else append(line);
+                int existing = index(e.id(), e.name());
+                if (e.type().equals("message") && existing >= 0
+                        && Set.of("Enviando…", "Entrega não confirmada").contains(Objects.toString(history.get(existing).delivery(), "")))
+                    history.set(existing, line);
+                else append(line);
             }
             case "uncertain", "error" -> {
                 int index = index(e.id(), myName);
@@ -553,13 +557,38 @@ public final class ChatApp extends Application {
     }
     private void append(Line line) {
         boolean follow = followTail || Objects.equals(line.name(), myName);
-        history.add(line); if (history.size() > 500) history.removeFirst();
+        history.add(line); if (history.size() > Protocol.CHANNEL_HISTORY_LIMIT) history.removeFirst();
         if (follow) jumpToLatest(); else { unread++; newMessages.setText(unread + " novas mensagens ↓"); newMessages.setManaged(true); newMessages.setVisible(true); }
     }
     private void sendMessage() {
         if (connection == null || send.isDisabled()) return;
         try { connection.send(composer.getText()); composer.clear(); hint.setText(""); composer.requestFocus(); }
         catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
+    }
+
+    private void confirmDeletion(Line line) {
+        if (!online || connection == null) { hint.setText("Reconecte ao canal para apagar a mensagem."); return; }
+        if (!Protocol.validMessageReference(line.reference())) {
+            hint.setText("A exclusão exige uma mensagem enviada com o Wavecove 1.8 e um servidor compatível."); return;
+        }
+        long account = epoch;
+        String channel = currentChannel;
+        var erase = new ButtonType("Apagar", ButtonBar.ButtonData.OK_DONE);
+        var cancel = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+        var prompt = new Alert(Alert.AlertType.CONFIRMATION, line.attachment()
+                ? "O arquivo ficará indisponível para novos downloads. Cópias já salvas continuam nos dispositivos."
+                : "O Wavecove vai remover esta mensagem da conversa para quem usa a versão 1.8 ou superior.", cancel, erase);
+        prompt.initOwner(stage);
+        prompt.setTitle(APP_NAME);
+        prompt.setHeaderText("Apagar " + (line.attachment() ? "o anexo" : "a mensagem") + " de #" + channel + "?");
+        prompt.getDialogPane().getStylesheets().setAll(stage.getScene().getStylesheets());
+        prompt.getDialogPane().getStyleClass().add("wavecove-dialog");
+        ((Button) prompt.getDialogPane().lookupButton(erase)).setDefaultButton(false);
+        ((Button) prompt.getDialogPane().lookupButton(cancel)).setDefaultButton(true);
+        if (prompt.showAndWait().orElse(cancel) != erase || account != epoch || !channel.equals(currentChannel)
+                || connection == null || !history.contains(line)) return;
+        try { connection.deleteMessage(line.reference(), channel); }
+        catch (IllegalStateException ex) { hint.setText(ex.getMessage()); }
     }
 
     private void refreshAttachmentButton() {
@@ -645,15 +674,6 @@ public final class ChatApp extends Application {
     private static VBox field(String title, Control field) {
         var label = label(title, "field-label"); label.setLabelFor(field); return new VBox(0, label, field);
     }
-    private void updateMotionPreference() {
-        boolean paused = motion.isSelected();
-        backdrop.setPaused(paused);
-        for (var toggle : List.of(authMotion, motion)) {
-            toggle.setText(paused ? "Retomar animação" : "Pausar animação");
-            toggle.setAccessibleText(toggle.getText());
-        }
-    }
-
     private void refreshMotion() {
         backdrop.setActive(!stopped && (!inRoom || online) && stage != null && stage.isShowing() && !stage.isIconified());
     }
@@ -683,7 +703,8 @@ public final class ChatApp extends Application {
             catch (DateTimeException ignored) { }
             String delivery = Objects.toString(line.delivery(), "");
             String meta = time.isEmpty() || delivery.isEmpty() ? time + delivery : time + " · " + delivery;
-            var bubble = new VBox(5, label(own ? "Você" : line.name(), "sender"), text);
+            var sender = label(own ? "Você" : line.name(), "sender");
+            var bubble = new VBox(5, sender, text);
             if (!meta.isEmpty()) bubble.getChildren().add(label(meta, "message-meta"));
             if (line.attachment()) {
                 Attachment kind = Attachment.forName(line.text());
@@ -715,6 +736,21 @@ public final class ChatApp extends Application {
                     var recoverButton = new Button("Recuperar texto"); recoverButton.getStyleClass().add("secondary-button");
                     recoverButton.setOnAction(e -> recover(line.text())); bubble.getChildren().add(recoverButton);
                 }
+            }
+            if (own && (line.attachment() || "Confirmada pelo servidor".equals(line.delivery()))) {
+                var erase = new MenuItem("Apagar mensagem…");
+                erase.setOnAction(e -> confirmDeletion(line));
+                menu.getItems().addAll(new SeparatorMenuItem(), erase);
+                var actions = new Button("⋯");
+                actions.getStyleClass().add("message-actions");
+                actions.setAccessibleText("Ações da mensagem");
+                actions.setTooltip(new Tooltip("Ações da mensagem"));
+                actions.setOnAction(e -> menu.show(actions, Side.BOTTOM, 0, 0));
+                var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+                bubble.getChildren().remove(sender);
+                var top = new HBox(8, sender, spacer, actions);
+                top.setAlignment(Pos.CENTER_LEFT);
+                bubble.getChildren().addFirst(top);
             }
             bubble.setOnContextMenuRequested(e -> menu.show(bubble, e.getScreenX(), e.getScreenY()));
             bubble.getStyleClass().add("bubble"); if (own) bubble.getStyleClass().add("own");

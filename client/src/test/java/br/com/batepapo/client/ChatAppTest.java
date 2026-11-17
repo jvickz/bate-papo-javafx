@@ -192,6 +192,90 @@ class ChatAppTest {
         @Override public void close() { closed = true; }
     }
 
+    @Test void screenControlsRequireConfirmationAndDisplayFramesUntilPeerStops() throws Exception {
+        class Media implements VoiceEngine {
+            Consumer<String> states;
+            Consumer<Frame> viewer;
+            Screen shared;
+            boolean stopped;
+            @Override public void start(VoiceConfig config, Consumer<String> signals, Consumer<String> states) {
+                this.states = states;
+                states.accept("connected");
+            }
+            @Override public CompletableFuture<List<Screen>> screens() {
+                return CompletableFuture.completedFuture(List.of(new Screen(7, "Monitor 1"), new Screen(9, "Monitor 2")));
+            }
+            @Override public void startScreen(Screen screen) { shared = screen; states.accept("screenstarted"); }
+            @Override public void stopScreen() { stopped = true; states.accept("screenstopped"); }
+            @Override public void onScreenFrame(Consumer<Frame> next) { viewer = next; }
+            @Override public void signal(String signal) {}
+            @Override public void setMuted(boolean muted) {}
+            @Override public void close() {}
+        }
+        var media = new Media();
+        var panel = fx(VoicePanel::new);
+        var commands = new ArrayList<Event>();
+        var voice = new VoiceController(commands::add, () -> media, Platform::runLater, panel::render);
+        var window = fx(() -> {
+            panel.bind(voice);
+            var stage = new Stage();
+            var scene = new javafx.scene.Scene(panel, 620, 160);
+            scene.getStylesheets().add(getClass().getResource("/chat.css").toExternalForm());
+            stage.setScene(scene);
+            stage.show();
+            voice.connection(true, false);
+            voice.participant("Alice", "Beto");
+            voice.receive(new Event("voice", "ready", null, null, null, null, null, null));
+            voice.invite();
+            voice.receive(new Event("callready", commands.getLast().id(), "Beto",
+                    new VoiceConfig(List.of(), true).encode(), null, null, List.of("screen-v1"), null));
+            return stage;
+        });
+        try {
+            fx(() -> { ((Button) panel.lookup("#screenShare")).fire(); return null; });
+            fx(() -> {
+                var dialog = javafx.stage.Window.getWindows().stream().map(w -> w.getScene().getRoot())
+                        .filter(DialogPane.class::isInstance).map(DialogPane.class::cast)
+                        .filter(d -> "screenPicker".equals(d.getId())).findFirst().orElseThrow();
+                assertNull(media.shared);
+                ((ComboBox<?>) dialog.lookup(".combo-box")).getSelectionModel().select(1);
+                ((Button) dialog.lookupButton(ButtonType.OK)).fire();
+                assertEquals(new VoiceEngine.Screen(9, "Monitor 2"), media.shared);
+                media.states.accept("remotescreenstarted");
+                return null;
+            });
+            var stage = fx(() -> {
+                assertEquals("Parar compartilhamento", ((Button) panel.lookup("#screenShare")).getText());
+                ((Button) panel.lookup("#screenWatch")).fire();
+                assertNotNull(media.viewer);
+                var frame = new byte[4 * 4];
+                for (int i = 0; i < frame.length; i += 4) { frame[i + 2] = -1; frame[i + 3] = -1; }
+                media.viewer.accept(new VoiceEngine.Frame(2, 2, frame));
+                return javafx.stage.Window.getWindows().stream().filter(Stage.class::isInstance).map(Stage.class::cast)
+                        .filter(w -> "Wavecove · Tela de Beto".equals(w.getTitle())).findFirst().orElseThrow();
+            });
+            awaitFx(() -> {
+                var image = ((javafx.scene.image.ImageView) stage.getScene().lookup("#screenImage")).getImage();
+                return image != null && image.getPixelReader().getArgb(1, 1) == 0xffff0000;
+            });
+            fx(() -> {
+                ((ToggleButton) stage.getScene().lookup("#screenOriginal")).fire();
+                assertEquals(2, ((javafx.scene.image.ImageView) stage.getScene().lookup("#screenImage")).getFitWidth());
+                ((Button) panel.lookup("#screenShare")).fire();
+                assertTrue(media.stopped);
+                media.states.accept("remotescreenstopped");
+                return null;
+            });
+            fx(() -> {
+                assertFalse(stage.isShowing());
+                assertNull(media.viewer);
+                assertFalse(panel.lookup("#screenWatch").isVisible());
+                assertEquals("Compartilhar tela", ((Button) panel.lookup("#screenShare")).getText());
+                return null;
+            });
+        } finally { fx(() -> { voice.connection(false, false); window.close(); return null; }); }
+    }
+
     @Test void connectionNoticeIsReachableAtMinimumWindowSize() throws Exception {
         var app = new ChatApp();
         Stage stage = fx(() -> { var window = new Stage(); app.start(window); window.setWidth(900); window.setHeight(720); return window; });
@@ -245,16 +329,16 @@ class ChatAppTest {
                     var scene = stage.getScene();
                     var background = (PixelBackdrop) scene.lookup("#pixelBackdrop");
                     assertEquals(PixelBackdrop.View.LOGIN, background.view());
-                    var effects = (ToggleButton) scene.lookup("#authMotion");
-                    if (effects.isSelected()) effects.fire();
-                    assertTrue(background.isRunning());
+                    assertNull(scene.lookup("#authMotion"));
+                    assertEquals(WindowsTitleBar.animationsEnabled(), background.isRunning());
+                    var card = (javafx.scene.layout.Region) scene.lookup(".card");
+                    var gradient = assertInstanceOf(javafx.scene.paint.LinearGradient.class,
+                            card.getBackground().getFills().getFirst().getFill());
+                    assertTrue(gradient.getStops().stream().allMatch(stop -> stop.getColor().getOpacity() < 1));
                     snapshot(stage, "login");
                     ((ToggleButton) scene.lookup("#registerTab")).fire();
                     assertEquals(PixelBackdrop.View.REGISTER, background.view());
-                    assertTrue(background.isRunning());
-                    effects.fire();
-                    assertFalse(background.isRunning());
-                    effects.fire();
+                    assertEquals(WindowsTitleBar.animationsEnabled(), background.isRunning());
                     snapshot(stage, "registration");
                     fillAccount(stage, "TesteUI", PASSWORD, server.port(), true); return null;
                 });
@@ -274,6 +358,9 @@ class ChatAppTest {
                     Thread.sleep(30);
                 }
                 assertTrue(received);
+                String toWithdraw = peer.send("Mensagem de retirada no outro canal");
+                awaitFx(() -> ((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString()
+                        .contains("Mensagem de retirada no outro canal"));
                 fx(() -> {
                     ((TextArea) stage.getScene().lookup("#composer")).setText("Rascunho no geral");
                     ((TextField) stage.getScene().lookup("#channelName")).setText("porto");
@@ -286,6 +373,10 @@ class ChatAppTest {
                     assertFalse(((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains("Resposta recebida!"), "Trocar canal limpa histórico anterior");
                     return null;
                 });
+                String ref = events.stream().filter(e -> toWithdraw.equals(e.id()) && "message".equals(e.type()))
+                        .map(Event::session).findFirst().orElseThrow();
+                peer.deleteMessage(ref, "geral");
+                ChatConnectionTest.await(() -> events.stream().anyMatch(e -> ref.equals(e.id()) && "deleted".equals(e.type())));
                 peer.joinChannel("porto");
                 ChatConnectionTest.await(() -> events.stream().anyMatch(e -> "joined".equals(e.type()) && "porto".equals(e.channel())));
                 peer.send("Bem-vindo a bordo. Vamos conversar? ⛵");
@@ -296,6 +387,8 @@ class ChatAppTest {
                 assertTrue(channelReceived);
                 fx(() -> { ((ListView<String>) stage.getScene().lookup("#channels")).getSelectionModel().select("geral"); return null; });
                 awaitFx(() -> "#geral".equals(((Label) stage.getScene().lookup("#channelHeading")).getText()));
+                awaitFx(() -> !((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString()
+                        .contains("Mensagem de retirada no outro canal"));
                 fx(() -> {
                     assertEquals("Rascunho no geral", ((TextArea) stage.getScene().lookup("#composer")).getText());
                     assertTrue(((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains("Resposta recebida!"));
@@ -308,6 +401,13 @@ class ChatAppTest {
                 fx(() -> { snapshot(stage, "conversation-small");
                     var button = (Button) stage.getScene().lookup("#send");
                     assertTrue(button.getWidth() >= button.prefWidth(-1) - 1, "Enviar deve caber inteiro na largura mínima"); return null; });
+                Event removable = events.stream().filter(e -> "message".equals(e.type())
+                        && "Tudo certo por aqui. Mar tranquilo! 🌊".equals(e.text())).findFirst().orElseThrow();
+                chooseDelete(stage, "Cancelar");
+                assertTrue(fx(() -> ((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains(removable.text())));
+                chooseDelete(stage, "Apagar");
+                ChatConnectionTest.await(() -> events.stream().anyMatch(e -> "deleted".equals(e.type()) && removable.session().equals(e.id())));
+                awaitFx(() -> !((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains(removable.text()));
                 // Feed deterministic server events to exercise the real virtualized list and recovery controls.
                 fx(() -> {
                     var handler = ChatApp.class.getDeclaredMethod("onEvent", Event.class); handler.setAccessible(true);
@@ -339,34 +439,50 @@ class ChatAppTest {
                 });
                 var backdrop = fx(() -> (PixelBackdrop) stage.getScene().lookup("#pixelBackdrop"));
                 assertEquals(PixelBackdrop.View.CHAT, fx(backdrop::view));
-                assertTrue(fx(backdrop::isRunning));
-                long before = fx(backdrop::frameCount);
-                Thread.sleep(180);
-                assertTrue(fx(backdrop::frameCount) > before, "Fundo deve animar na sala conectada");
-                fx(() -> { ((ToggleButton) stage.getScene().lookup("#motionToggle")).fire(); return null; });
-                assertFalse(fx(backdrop::isRunning));
-                long frozen = fx(backdrop::frameCount);
-                Thread.sleep(180);
-                assertEquals(frozen, fx(backdrop::frameCount));
-                fx(() -> { stage.setIconified(true); stage.setIconified(false); return null; });
-                assertFalse(fx(backdrop::isRunning), "Restaurar janela deve preservar pausa do usuário");
-                fx(() -> { ((ToggleButton) stage.getScene().lookup("#motionToggle")).fire(); return null; });
-                assertTrue(fx(backdrop::isRunning));
+                assertNull(fx(() -> stage.getScene().lookup("#motionToggle")));
+                boolean animate = WindowsTitleBar.animationsEnabled();
+                assertEquals(animate, fx(backdrop::isRunning));
+                if (animate) {
+                    long before = fx(backdrop::frameCount);
+                    awaitFx(() -> backdrop.frameCount() > before);
+                }
                 fx(() -> { stage.setIconified(true); return null; });
                 assertFalse(fx(backdrop::isRunning), "Janela minimizada não deve renderizar frames");
                 fx(() -> { stage.setIconified(false); return null; });
-                assertTrue(fx(backdrop::isRunning));
+                assertEquals(animate, fx(backdrop::isRunning));
                 fx(() -> {
                     stage.getScene().getRoot().lookupAll(".button").stream()
                         .filter(n -> n instanceof Button b && b.getText().equals("Sair da conta"))
                         .map(n -> (Button) n).findFirst().orElseThrow().fire();
                     assertEquals(PixelBackdrop.View.LOGIN, backdrop.view());
-                    assertTrue(backdrop.isRunning(), "Sair restaura a paisagem animada de abertura");
+                    assertEquals(animate, backdrop.isRunning(), "Sair restaura a paisagem de abertura");
                     app.stop(); backdrop.setActive(true);
                     assertFalse(backdrop.isRunning(), "Timer fechado não deve reiniciar"); return null;
                 });
             } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
         }
+    }
+
+    private static void chooseDelete(Stage stage, String decision) throws Exception {
+        fx(() -> {
+            stage.getScene().getRoot().applyCss(); stage.getScene().getRoot().layout();
+            ((Button) stage.getScene().lookup(".message-actions")).fire();
+            var menu = javafx.stage.Window.getWindows().stream()
+                    .filter(w -> w instanceof ContextMenu c && c.getOwnerWindow() == stage)
+                    .map(w -> (ContextMenu) w).findFirst().orElseThrow();
+            var erase = menu.getItems().stream().filter(item -> "Apagar mensagem…".equals(item.getText())).findFirst().orElseThrow();
+            menu.hide();
+            Platform.runLater(erase::fire);
+            return null;
+        });
+        fx(() -> {
+            var dialog = javafx.stage.Window.getWindows().stream()
+                    .filter(w -> w instanceof Stage modal && modal.getOwner() == stage)
+                    .map(w -> (DialogPane) w.getScene().getRoot()).findFirst().orElseThrow();
+            var selected = dialog.getButtonTypes().stream().filter(type -> decision.equals(type.getText())).findFirst().orElseThrow();
+            ((Button) dialog.lookupButton(selected)).fire();
+            return null;
+        });
     }
 
     private static void awaitFx(Callable<Boolean> condition) throws Exception {

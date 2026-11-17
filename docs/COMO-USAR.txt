@@ -1,6 +1,6 @@
-WAVECOVE 1.7 — WINDOWS x64
+WAVECOVE 1.8 — WINDOWS x64
 
-1. Se recebeu Wavecove-1.7.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
+1. Se recebeu Wavecove-1.8.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
    Se recebeu um ZIP, extraia tudo antes de abrir Wavecove.exe.
    Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
    Não precisa instalar Java separadamente.
@@ -33,11 +33,14 @@ Enter envia. Shift+Enter quebra a linha.
 O contador mostra o limite de 2000 caracteres por mensagem.
 Enquanto você lê mensagens antigas, as novas não puxam a tela para baixo.
 Use o botão de novas mensagens para voltar ao fim da conversa.
-O controle de movimento permite pausar os cenários animados do cadastro e da conversa. Minimizar a janela também pausa a animação.
+O cenário anima automaticamente e acompanha a preferência de movimento do Windows. Minimizar a janela pausa o desenho.
 Confirmada pelo servidor NÃO significa lida pela outra pessoa.
 Entrega não confirmada significa que a mensagem pode ter chegado.
 
 Clique com o botão direito em uma mensagem para Copiar mensagem.
+Nos seus envios, use ⋯ → Apagar mensagem… e confirme em Apagar.
+Isso remove o texto ou anexo do canal para participantes na versão 1.8.
+Arquivos já salvos ficam no computador de quem os baixou.
 Em uma mensagem sua, Editar novamente recupera o texto para revisão.
 Mensagens com falha também oferecem Recuperar texto. Se você já estiver
 escrevendo, o texto recuperado será copiado, preservando seu rascunho.

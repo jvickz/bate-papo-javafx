@@ -2,17 +2,17 @@
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Cada pessoa cria uma conta e entra com seu usuário e senha para conversar em tempo real no mesmo canal.
 
-O Wavecove combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. O cadastro tem uma animação própria. O controle de movimento pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+O Wavecove combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. O cadastro tem uma animação própria. O cartão de acesso tem um degradê translúcido. O cenário anima automaticamente com a janela aberta, respeita a preferência de movimento do Windows e pausa quando a janela está minimizada. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
 
 ![Tela de entrada do Wavecove](docs/previews/wavecove-login.png)
 
-[Cadastro e barra de título no Windows](docs/previews/wavecove-janela.png) · [Conversa em um canal](docs/previews/wavecove-conversation.png)
+[Cadastro ao amanhecer](docs/previews/wavecove-registration.png) · [Conversa em um canal](docs/previews/wavecove-conversation.png)
 
 ## Abrir o aplicativo
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `Wavecove-1.7.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `Wavecove-1.8.0.msi`: instalador para Windows x64, por usuário, com atalhos.
 - `Wavecove-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `Wavecove.exe`.
 - `Wavecove/Wavecove.exe`: aplicativo já extraído nesta máquina.
 
@@ -22,11 +22,11 @@ Java está incluído no pacote. O servidor roda separadamente. `localhost` funci
 
 O servidor desta instalação está em **https://bate-papo-java.onrender.com**, no plano gratuito do workspace My Workspace.
 
-1. Abra o Wavecove 1.7 e selecione **Criar conta**. Escolha um usuário de 3 a 24 caracteres (letras sem acento, números e sublinhado) e uma senha de 12 a 128 caracteres. Nas próximas vezes, escolha **Entrar**.
+1. Abra o Wavecove 1.8 e selecione **Criar conta**. Escolha um usuário de 3 a 24 caracteres (letras sem acento, números e sublinhado) e uma senha de 12 a 128 caracteres. Nas próximas vezes, escolha **Entrar**.
 2. Peça à outra pessoa que crie a própria conta no mesmo servidor. O convite copiado em **Convidar pessoa** identifica o servidor e o canal.
 3. Entre no canal indicado e procure a outra pessoa na lista de participantes. Use o endereço nas opções de conexão se precisar trocar de servidor.
 
-O servidor com contas requer a versão 1.7 nos dois computadores. Apelidos das versões anteriores eram temporários. A primeira pessoa a cadastrar um nome passa a usá-lo com a própria senha.
+O acesso por conta está disponível desde a versão 1.7. Apelidos das versões anteriores eram temporários. A primeira pessoa a cadastrar um nome passa a usá-lo com a própria senha.
 
 ## Criar canais e testar uma conversa
 
@@ -36,9 +36,11 @@ Para testar no mesmo computador, abra duas janelas do Wavecove e entre com uma c
 
 Trocar de canal preserva rascunhos e histórico durante a sessão. O menu de contexto permite copiar mensagens e recuperar texto de envios recusados. Reiniciar o servidor encerra os canais temporários. As contas permanecem no banco.
 
+Para apagar um texto, uma foto ou um vídeo que você enviou, abra **⋯ → Apagar mensagem…** e confirme em **Apagar**. O servidor verifica a autoria e remove o envio para quem usa a versão 1.8 no canal. A exclusão está disponível para os últimos 500 envios por canal. Quem já salvou um arquivo continua com sua cópia.
+
 ## Fotos e vídeos
 
-Na versão 1.6, clique em **Anexar** no canal e selecione uma foto JPG ou PNG de até 5 MB (até 8 megapixels) ou um vídeo MP4 de até 15 MB. A outra pessoa pode usar **Ver foto**, **Salvar foto** ou **Baixar vídeo**. O vídeo abre no player do Windows depois de salvo. Use a versão 1.7 nos dois computadores para entrar com conta.
+Clique em **Anexar** no canal e selecione uma foto JPG ou PNG de até 5 MB (até 8 megapixels) ou um vídeo MP4 de até 15 MB. A outra pessoa pode usar **Ver foto**, **Salvar foto** ou **Baixar vídeo**. O vídeo abre no player do Windows depois de salvo.
 
 Os arquivos ficam disponíveis para participantes autenticados no mesmo canal por até 30 minutos. Reiniciar o servidor apaga os arquivos. Salve no computador os anexos que quiser guardar.
 
@@ -49,6 +51,12 @@ O Wavecove permite selecionar alguém no mesmo canal e ligar. A pessoa aceita ou
 O servidor deste projeto já está com TURN configurado. Em 17/11/2026, o diagnóstico nativo confirmou áudio sintético nos dois sentidos usando relay da Cloudflare. Falta a verificação humana com microfones e computadores em redes diferentes. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md), [instruções de uso](docs/CHAMADAS-DE-VOZ.txt) e [evidências de validação](docs/VALIDACAO-1.4.md). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale o Wavecove nos dois computadores. Instalações próprias sem TURN configurado mantêm o texto funcionando e informam voz indisponível.
 
 O WebRTC nativo é fornecido por [webrtc-java 1.0.1](https://github.com/devopvoid/webrtc-java). Os JARs distribuídos mantêm `META-INF/LICENSE`, `META-INF/NOTICE` e as licenças dos componentes nativos em `META-INF/licenses/`.
+
+## Compartilhar tela
+
+Instalem a versão 1.8 nos dois computadores. Durante uma chamada conectada, escolha **Compartilhar tela**, selecione o monitor e confirme em **Compartilhar**. A outra pessoa pode abrir **Ver tela de…**, usar **Tamanho original** para ler texto pequeno ou pressionar **F11** para tela cheia. **Parar compartilhamento** encerra a transmissão do monitor e mantém a voz.
+
+A captura prioriza a legibilidade de texto e está configurada para até 3840 × 2160 a 30 quadros por segundo, com limite de envio de 24 Mb/s. A qualidade recebida depende da resolução do monitor, dos computadores e da conexão.
 
 ## Desenvolvimento no Windows
 
@@ -88,7 +96,7 @@ O projeto inclui `Dockerfile` e `render.yaml`. O servidor escuta `0.0.0.0:$PORT`
 1. Crie um projeto PostgreSQL dedicado. No Supabase, reserve um schema privado chamado `wavecove` e um usuário de banco exclusivo para o servidor, com permissão de criar tabelas apenas nesse schema. O cadastro e a autenticação rodam no servidor Java.
 2. No Supabase, abra **Connect → Session pooler**. Use o host e a porta exibidos e o usuário no formato `role.project-ref`. Configure a URI PostgreSQL com TLS em `DATABASE_URL` nas variáveis privadas do serviço Render. No projeto só devem entrar arquivos de código.
 3. Publique a imagem a partir deste repositório. Confira `/health`, cadastre duas contas de teste e verifique a troca de mensagens via WSS. O servidor cria as tabelas de contas no primeiro início. O endereço do banco e sua senha ficam no Render.
-4. Distribua o cliente 1.7 para quem for conversar. O Blueprint usa publicação manual. A atualização de um servidor antigo requer o banco configurado antes do deploy.
+4. Distribua o cliente 1.8 para quem for conversar. O Blueprint usa publicação manual. A atualização de um servidor antigo requer o banco configurado antes do deploy.
 
 O plano gratuito do Render suspende o serviço após 15 minutos sem tráfego e a primeira conexão após inatividade pode levar aproximadamente um minuto. Há cotas compartilhadas de uso, incluindo horas, builds e tráfego. Consulte o painel antes de publicar; a configuração deste projeto não contrata um plano pago. [Limitações oficiais](https://render.com/docs/free).
 

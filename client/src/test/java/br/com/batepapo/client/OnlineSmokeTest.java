@@ -74,7 +74,7 @@ class OnlineSmokeTest {
                     assertEquals(2, participants.users().size(), "Reserve #teste-rede para os dois participantes de teste.");
 
                     String first = a.send("Verificação de entrega A → B");
-                    assertMessage(eventsB, first, userA.username(), "Verificação de entrega A → B");
+                    Event firstDelivery = assertMessage(eventsB, first, userA.username(), "Verificação de entrega A → B");
                     String reply = b.send("Verificação de entrega B → A");
                     assertMessage(eventsA, reply, userB.username(), "Verificação de entrega B → A");
 
@@ -87,6 +87,13 @@ class OnlineSmokeTest {
                             && CHANNEL.equals(e.channel()) && photo.getFileName().toString().equals(e.text()));
                     assertArrayEquals(Files.readAllBytes(photo),
                             b.attachmentTransfer(CHANNEL).download(media.id(), Attachment.PNG).get(65, TimeUnit.SECONDS));
+                    a.deleteMessage(firstDelivery.session(), CHANNEL);
+                    eventsB.await("deleted", e -> firstDelivery.session().equals(e.id()));
+                    a.deleteMessage(media.session(), CHANNEL);
+                    eventsB.await("deleted", e -> media.session().equals(e.id()));
+                    var unavailable = assertThrows(java.util.concurrent.ExecutionException.class,
+                            () -> b.attachmentTransfer(CHANNEL).download(media.id(), Attachment.PNG).get(65, TimeUnit.SECONDS));
+                    assertTrue(unavailable.getCause().getMessage().contains("Anexo indisponível"));
                 } finally {
                     accounts.logout(url, userB.token());
                 }
@@ -99,11 +106,12 @@ class OnlineSmokeTest {
         }
     }
 
-    private static void assertMessage(Inbox inbox, String id, String sender, String text) throws Exception {
+    private static Event assertMessage(Inbox inbox, String id, String sender, String text) throws Exception {
         var message = inbox.await("message", e -> id.equals(e.id()));
         assertEquals(CHANNEL, message.channel());
         assertEquals(sender, message.name());
         assertEquals(text, message.text());
+        return message;
     }
 
     private static String setting(String name) {

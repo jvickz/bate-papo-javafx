@@ -8,13 +8,20 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class Protocol {
     public static final int MAX_BYTES = 16384;
+    public static final String DELETE_CAPABILITY = "delete-v1";
+    public static final int CHANNEL_HISTORY_LIMIT = 500;
+    private static final Pattern MESSAGE_REFERENCE = Pattern.compile("[A-Za-z0-9_-]{22}");
     private static final ObjectMapper JSON = new ObjectMapper(JsonFactory.builder()
             .streamReadConstraints(StreamReadConstraints.builder().maxNestingDepth(6).maxStringLength(12000).build()).build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private Protocol() {}
+    public static boolean validMessageReference(String ref) {
+        return ref != null && MESSAGE_REFERENCE.matcher(ref).matches();
+    }
     public static String encode(Event event) {
         try { return JSON.writeValueAsString(event); }
         catch (Exception e) { throw new IllegalArgumentException("Não foi possível preparar a mensagem."); }

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -158,6 +160,82 @@ class VoiceControllerTest {
         assertTrue(view.text().contains("áudio"));
     }
 
+    @Test void sharingRequiresNewClientsConnectedCallAndConfirmationOfAnEnumeratedDisplay() {
+        var oldEngine = connectOutgoing();
+        oldEngine.states.accept("connected");
+        runCallbacks();
+        controller.chooseScreen(choice -> fail("Cliente antigo deve manter apenas áudio"));
+        assertFalse(oldEngine.screenEnabled);
+        assertEquals(0, oldEngine.enumerations);
+        controller.end();
+
+        var engine = connectScreen();
+        assertTrue(engine.screenEnabled);
+        controller.chooseScreen(choice -> fail("Áudio ainda não conectou"));
+        assertEquals(0, engine.enumerations);
+        engine.states.accept("connected");
+        runCallbacks();
+        var selected = new AtomicReference<VoiceController.ScreenChoice>();
+        controller.chooseScreen(selected::set);
+        assertNull(engine.started);
+        var monitor = new VoiceEngine.Screen(3, "Monitor 3");
+        engine.availableScreens.complete(List.of(monitor));
+        runCallbacks();
+        assertEquals(List.of(monitor), selected.get().screens());
+        controller.confirmScreen("chamada antiga", monitor);
+        assertNull(engine.started);
+        controller.confirmScreen(view.callId(), new VoiceEngine.Screen(4, "Outro"));
+        assertNull(engine.started);
+        controller.chooseScreen(selected::set);
+        runCallbacks();
+        controller.confirmScreen(view.callId(), monitor);
+        assertEquals(monitor, engine.started);
+        engine.states.accept("screenstarted");
+        runCallbacks();
+        assertEquals(VoiceController.Sharing.ON, view.sharing());
+        controller.stopScreen();
+        assertEquals(1, engine.stops);
+        engine.states.accept("screenstopped");
+        runCallbacks();
+        assertEquals(VoiceController.Sharing.OFF, view.sharing());
+        assertEquals(VoiceController.Phase.CONNECTED, view.phase());
+    }
+
+    @Test void lateScreenChoiceAndLateFramesCannotReachANewCall() {
+        var engine = connectScreen();
+        engine.states.accept("connected");
+        engine.states.accept("remotescreenstarted");
+        runCallbacks();
+        assertTrue(view.receiving());
+        var sink = controller.openViewer(view.callId());
+        assertNotNull(sink);
+        var callback = engine.frames;
+        callback.accept(new VoiceEngine.Frame(2, 2, new byte[16]));
+        assertNotNull(sink.take());
+        var picked = new AtomicReference<VoiceController.ScreenChoice>();
+        controller.chooseScreen(picked::set);
+        controller.connection(false, true);
+        engine.availableScreens.complete(List.of(new VoiceEngine.Screen(1, "Monitor 1")));
+        engine.states.accept("remotescreenstarted");
+        callback.accept(new VoiceEngine.Frame(2, 2, new byte[16]));
+        runCallbacks();
+        assertNull(sink.take());
+        assertNull(picked.get());
+        assertFalse(view.receiving());
+        assertEquals(1, engine.closes);
+    }
+
+    private FakeEngine connectScreen() {
+        controller.connection(true, false);
+        controller.participant("Alice", "Beto");
+        event("voice", "ready", null, null);
+        controller.invite();
+        var id = commands.getLast().id();
+        controller.receive(new Event("callready", id, "Beto", config(true).encode(),
+                null, null, List.of("screen-v1"), null, "geral"));
+        return engines.getLast();
+    }
+
     private void available() {
         controller.connection(true, false);
         controller.participant("Alice", "Beto");
@@ -193,6 +271,18 @@ class VoiceControllerTest {
         private Consumer<String> signals;
         private Consumer<String> states;
         private int closes;
+        private boolean screenEnabled;
+        private int enumerations;
+        private int stops;
+        private Screen started;
+        private Consumer<Frame> frames;
+        private final CompletableFuture<List<Screen>> availableScreens = new CompletableFuture<>();
+
+        @Override public void enableScreenSharing(boolean enabled) { screenEnabled = enabled; }
+        @Override public CompletableFuture<List<Screen>> screens() { enumerations++; return availableScreens; }
+        @Override public void startScreen(Screen screen) { started = screen; }
+        @Override public void stopScreen() { stops++; }
+        @Override public void onScreenFrame(Consumer<Frame> listener) { frames = listener; }
 
         @Override public void start(VoiceConfig config, Consumer<String> signals, Consumer<String> states) {
             this.config = config;

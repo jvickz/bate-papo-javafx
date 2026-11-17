@@ -28,6 +28,7 @@ public final class ChatConnection implements AutoCloseable {
     private URI uri;
     private String name, token, resume;
     private volatile String attachmentSession;
+    private volatile boolean deletionReady;
     private WebSocket socket;
     private volatile long attempt;
     private long lastTraffic;
@@ -96,6 +97,22 @@ public final class ChatConnection implements AutoCloseable {
     }
     public void createChannel(String name) { changeChannel("create", name); }
     public void joinChannel(String name) { changeChannel("join", name); }
+
+    public void deleteMessage(String reference, String expectedChannel) {
+        if (!deletionReady || !Protocol.validMessageReference(reference))
+            throw new IllegalStateException("Este envio não pode ser apagado neste servidor.");
+        if (!connected || switching || !channel.equals(expectedChannel))
+            throw new IllegalStateException("Aguarde a conexão e volte ao canal da mensagem.");
+        long g = generation.get(), a = attempt;
+        execute(() -> {
+            if (generation.get() != g) return;
+            if (!active(g, a) || switching || !connected || !channel.equals(expectedChannel)) {
+                events.accept(Event.of("deleteerror", "A conexão ou o canal mudou. Tente apagar novamente."));
+                return;
+            }
+            write(new Event("delete", reference, null, null, null, null, null, null, expectedChannel), g, a);
+        });
+    }
 
     AttachmentTransfer attachmentTransfer(String expectedChannel) {
         String session = attachmentSession;
@@ -169,6 +186,18 @@ public final class ChatConnection implements AutoCloseable {
                 events.accept(event); states.accept("connected");
             }
             case "channels" -> { if (connected) events.accept(event); }
+            case "retained" -> {
+                if (connected && channel.equals(event.channel()) && event.users() != null
+                        && event.users().size() <= Protocol.CHANNEL_HISTORY_LIMIT
+                        && event.users().stream().allMatch(Protocol::validMessageReference)) {
+                    deletionReady = true;
+                    events.accept(event);
+                }
+            }
+            case "deleted" -> {
+                if (connected && channel.equals(event.channel()) && Protocol.validMessageReference(event.id())) events.accept(event);
+            }
+            case "deleteerror" -> { if (connected) events.accept(event); }
             case "attachments" -> {
                 if (connected && Attachment.validId(event.session())) {
                     attachmentSession = event.session();
@@ -214,7 +243,7 @@ public final class ChatConnection implements AutoCloseable {
     private void lost(long g, long a, Throwable failure) {
         if (!active(g, a)) return;
         attempt++; connected = false;
-        attachmentSession = null;
+        attachmentSession = null; deletionReady = false;
         if (socket != null) { socket.abort(); socket = null; }
         clearPending(); clearChange(); states.accept("reconnecting");
         long delay = Math.min(30, 1L << Math.min(5, retries++));
@@ -245,7 +274,7 @@ public final class ChatConnection implements AutoCloseable {
         execute(() -> { stop(); states.accept("disconnected"); });
     }
     private void stop() {
-        wanted = false; connected = false; attachmentSession = null; attempt++;
+        wanted = false; connected = false; attachmentSession = null; deletionReady = false; attempt++;
         if (socket != null) { socket.abort(); socket = null; }
         clearPending(); clearChange(); token = null; resume = null;
     }
@@ -263,7 +292,7 @@ public final class ChatConnection implements AutoCloseable {
                 if (!active(g, a)) { ws.abort(); return; }
                 socket = ws; lastTraffic = System.nanoTime();
                 write(new Event("hello", "channels-v1", name, "voice-v1", token, resume,
-                        List.of(Attachment.CAPABILITY), null, channel), g, a);
+                        List.of(Attachment.CAPABILITY, Protocol.DELETE_CAPABILITY, VoiceConfig.SCREEN_CAPABILITY), null, channel), g, a);
                 ws.request(1);
             });
         }

@@ -1,13 +1,13 @@
-WAVECOVE 1.7 — CONEXÃO PELA INTERNET
+WAVECOVE 1.8 — CONEXÃO PELA INTERNET
 
-Instale Wavecove-1.7.0.msi nos dois computadores Windows x64.
+Instale Wavecove-1.8.0.msi nos dois computadores Windows x64.
 Ou extraia Wavecove-Windows-x64.zip inteiro e abra Wavecove.exe.
 Java já está incluído.
 
 1. No primeiro acesso, selecione Criar conta, escolha um usuário e uma senha.
    Nos próximos acessos, use Entrar. O usuário fica reservado para a conta.
 
-2. A outra pessoa deve instalar a versão 1.7 e criar uma conta própria.
+2. A outra pessoa deve instalar a versão 1.8 e criar uma conta própria.
    Em Convidar pessoa, copie o convite e envie o endereço e o canal.
    O endereço padrão é https://bate-papo-java.onrender.com. Para outro
    endereço, abra Configurações do servidor. Cada pessoa guarda sua senha.

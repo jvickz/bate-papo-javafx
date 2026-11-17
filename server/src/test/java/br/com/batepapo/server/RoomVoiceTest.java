@@ -102,6 +102,27 @@ class RoomVoiceTest {
         assertFalse(carla.received("callready"));
     }
 
+    @Test void authorizesScreenMediaOnlyWhenBothParticipantsAdvertiseSupport() {
+        var ana = new Peer(room, "Ana");
+        var bia = new Peer(room, "Bia");
+        ana.send(new Event("hello", "channels-v1", "Ana", "voice-v1", TOKEN, null, List.of("screen-v1"), null));
+        bia.send(new Event("hello", "channels-v1", "Bia", "voice-v1", TOKEN, null, List.of("screen-v1"), null));
+        String call = invite(ana, bia, "Bia");
+        bia.call("callaccept", call, null, null);
+        resolveCredentials();
+        assertEquals(List.of("screen-v1"), ana.last("callready").users());
+        assertEquals(List.of("screen-v1"), bia.last("callready").users());
+        ana.call("callend", call, null, null);
+
+        var oldClient = login("Carlos");
+        advance(3);
+        call = invite(ana, oldClient, "Carlos");
+        oldClient.call("callaccept", call, null, null);
+        resolveCredentials();
+        assertNull(ana.last("callready").users());
+        assertNull(oldClient.last("callready").users());
+    }
+
     @Test void rejectsBusyTargetsAndReleasesBothOnDecline() {
         var ana = login("Ana");
         var bia = login("Bia");

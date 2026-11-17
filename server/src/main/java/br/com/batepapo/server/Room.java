@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,9 @@ final class Room {
     private final Set<String> channels = new LinkedHashSet<>(List.of(DEFAULT_CHANNEL));
     private final Map<String, Member> members = new LinkedHashMap<>();
     private final Map<String, StoredAttachment> attachments = new LinkedHashMap<>();
+    private record Published(String owner, String attachmentId) {}
+    private final Map<String, LinkedHashMap<String, Published>> published = new HashMap<>();
+    private final SecureRandom references = new SecureRandom();
     private int attachmentBytes;
     private final Deque<Event> broadcasts = new ArrayDeque<>();
     private boolean broadcasting;
@@ -66,6 +70,8 @@ final class Room {
         String attachmentSession;
         long channelRevision, nextUpload;
         boolean supportsChannels, supportsVoice;
+        boolean supportsScreen;
+        boolean supportsDelete;
         Call call;
         final LinkedHashSet<String> ids = new LinkedHashSet<>();
 
@@ -159,6 +165,7 @@ final class Room {
         switch (event.type()) {
             case "pong" -> { }
             case "message" -> message(member, event);
+            case "delete" -> deleteMessage(member, event);
             case "create", "join" -> changeChannel(id, member, event);
             case "callinvite", "callaccept", "callreject", "callend", "callsignal", "callconnected" -> {
                 return voiceCommand(member, event, now);
@@ -194,7 +201,44 @@ final class Room {
         catch (IllegalArgumentException ex) { error(member, messageId, ex.getMessage()); return; }
         if (!member.ids.add(messageId)) { error(member, messageId, "Mensagem repetida; não foi reenviada."); return; }
         if (member.ids.size() > 256) member.ids.removeFirst();
-        broadcast(new Event("message", messageId, member.name, event.text(), null, null, null, Instant.now().toString(), member.channel));
+        String reference = remember(member, null);
+        broadcast(new Event("message", messageId, member.name, event.text(), null, reference, null, Instant.now().toString(), member.channel));
+    }
+
+    /** Client-supplied message IDs correlate sends, but cannot authorize deletion or distinguish retries. */
+    private String remember(Member member, String attachmentId) {
+        if (!member.supportsDelete) return null;
+        byte[] random = new byte[16];
+        references.nextBytes(random);
+        String ref = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        var messages = published.computeIfAbsent(member.channel, ignored -> new LinkedHashMap<>());
+        messages.put(ref, new Published(member.name, attachmentId));
+        if (messages.size() > Protocol.CHANNEL_HISTORY_LIMIT) messages.pollFirstEntry();
+        return ref;
+    }
+
+    private void sendRetained(Member member) {
+        if (!member.supportsDelete) return;
+        var messages = published.get(member.channel);
+        var refs = messages == null ? List.<String>of() : List.copyOf(messages.keySet());
+        send(member, new Event("retained", null, null, null, null, null, refs, null, member.channel));
+    }
+
+    private void deleteMessage(Member member, Event event) {
+        String ref = event.id();
+        var messages = published.get(member.channel);
+        Published target = messages == null ? null : messages.get(ref);
+        if (!member.supportsDelete || !member.channel.equals(event.channel()) || target == null
+                || !member.name.equals(target.owner()) || !member.name.equals(accountSessions.owner(member.accountToken))) {
+            send(member, Event.of("deleteerror", "Só é possível apagar seus envios recentes no canal atual."));
+            return;
+        }
+        messages.remove(ref);
+        if (target.attachmentId() != null) {
+            var removed = attachments.remove(target.attachmentId());
+            if (removed != null) attachmentBytes -= removed.data().length;
+        }
+        broadcast(new Event("deleted", ref, null, null, null, null, null, null, member.channel));
     }
 
     record UploadPermit(String session, long channelRevision) {}
@@ -223,7 +267,7 @@ final class Room {
         String id = UUID.randomUUID().toString();
         attachments.put(id, new StoredAttachment(member.channel, type, data, now + ATTACHMENT_TTL));
         attachmentBytes += data.length;
-        broadcast(new Event("attachment", id, member.name, filename, null, null, null,
+        broadcast(new Event("attachment", id, member.name, filename, null, remember(member, id), null,
                 Instant.now().toString(), member.channel));
         return true;
     }
@@ -276,7 +320,11 @@ final class Room {
         } else member.resume = UUID.randomUUID().toString();
 
         member.supportsChannels = CHANNELS_CAPABILITY.equals(event.id());
+        member.supportsDelete = accountSessions != null && member.supportsChannels && event.users() != null
+                && event.users().contains(Protocol.DELETE_CAPABILITY);
         member.supportsVoice = member.supportsChannels && VOICE_CAPABILITY.equals(event.text());
+        member.supportsScreen = member.supportsVoice && event.users() != null
+                && event.users().contains(VoiceConfig.SCREEN_CAPABILITY);
         member.channel = DEFAULT_CHANNEL;
         String welcomeText = "Você entrou na sala.";
         if (member.supportsChannels && event.channel() != null) {
@@ -290,6 +338,7 @@ final class Room {
         if (previousChannel != null && !previousChannel.equals(member.channel))
             announce(previousChannel, name + " saiu da sala.");
         if (members.get(id) != member) return;
+        sendRetained(member);
         if (member.supportsChannels) send(member, catalog());
         if (members.get(id) == member && member.supportsVoice) {
             send(member, new Event("voice", turn == null ? "unavailable" : "ready", null,
@@ -333,6 +382,7 @@ final class Room {
             endCall(member.call, "Um participante mudou de canal.", null);
         if (members.get(id) != member) return;
         send(member, new Event("joined", requestId, null, null, null, null, null, null, channel));
+        sendRetained(member);
         if (previousChannel.equals(channel)) {
             presence(channel);
             return;
@@ -539,8 +589,10 @@ final class Room {
     }
 
     private void sendCall(Member recipient, Call call, String type, String text) {
+        var capabilities = "callready".equals(type) && call.caller.supportsScreen && call.callee.supportsScreen
+                ? List.of(VoiceConfig.SCREEN_CAPABILITY) : null;
         send(recipient, new Event(type, call.id.toString(), call.other(recipient).name, text,
-                null, null, null, null, call.channel));
+                null, null, capabilities, null, call.channel));
     }
 
     private void callError(Member member, UUID id, String peer, String text) {
@@ -575,16 +627,21 @@ final class Room {
     private void deliver(Event event) {
         String channel = event.channel();
         String currentJson = Protocol.encode(event);
+        boolean hasReference = event.session() != null && (event.type().equals("message") || event.type().equals("attachment"));
+        String previousJson = hasReference
+                ? Protocol.encode(new Event(event.type(), event.id(), event.name(), event.text(),
+                        event.token(), null, event.users(), event.time(), channel)) : currentJson;
         String legacyJson = DEFAULT_CHANNEL.equals(channel)
                 ? Protocol.encode(new Event(event.type(), event.id(), event.name(), event.text(),
-                        event.token(), event.session(), event.users(), event.time()))
+                        event.token(), hasReference ? null : event.session(), event.users(), event.time()))
                 : null;
         for (var entry : List.copyOf(members.entrySet())) {
             Member member = entry.getValue();
             if (member.name == null || members.get(entry.getKey()) != member) continue;
             if (channel != null && !channel.equals(member.channel)) continue;
             if (event.type().equals("attachment") && member.attachmentSession == null) continue;
-            if (member.supportsChannels) member.transport.send(currentJson);
+            if (event.type().equals("deleted") && !member.supportsDelete) continue;
+            if (member.supportsChannels) member.transport.send(member.supportsDelete ? currentJson : previousJson);
             else if (legacyJson != null) member.transport.send(legacyJson);
         }
     }
@@ -640,6 +697,7 @@ final class Room {
         members.clear();
         broadcasts.clear();
         attachments.clear();
+        published.clear();
         attachmentBytes = 0;
         for (Call call : List.copyOf(calls.values())) endCall(call, "Servidor encerrando.", null);
         for (var m : closing) m.transport.close();

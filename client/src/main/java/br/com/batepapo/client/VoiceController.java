@@ -4,6 +4,7 @@ import br.com.batepapo.protocol.Event;
 import br.com.batepapo.protocol.VoiceConfig;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -13,7 +14,10 @@ import java.util.function.Supplier;
 /** Owned by the UI thread. Engine callbacks are dispatched to that same thread. */
 final class VoiceController {
     enum Phase { IDLE, OUTGOING, INCOMING, CONNECTING, CONNECTED }
-    record View(Phase phase, boolean canInvite, boolean muted, String text) {}
+    enum Sharing { OFF, CHOOSING, STARTING, ON, STOPPING }
+    record View(Phase phase, boolean canInvite, boolean muted, String text, String callId, String peer,
+                boolean canShare, Sharing sharing, boolean receiving) {}
+    record ScreenChoice(String callId, String peer, List<VoiceEngine.Screen> screens) {}
 
     private static final String UNAVAILABLE = "Chamadas de voz indisponíveis neste servidor.";
     private static final String SEND_FAILED = "Não foi possível enviar o comando de voz.";
@@ -98,6 +102,83 @@ final class VoiceController {
         publish();
     }
 
+    void chooseScreen(Consumer<ScreenChoice> openPicker) {
+        var current = call;
+        if (current == null || current.phase != Phase.CONNECTED || !current.canShare
+                || current.sharing != Sharing.OFF) return;
+        current.sharing = Sharing.CHOOSING;
+        notice = null;
+        publish();
+        try {
+            current.engine.screens().whenComplete((screens, failure) -> dispatch.execute(() -> {
+                if (call != current || current.sharing != Sharing.CHOOSING) return;
+                if (failure != null || screens == null || screens.isEmpty()) {
+                    screenError("Nenhuma tela disponível para compartilhar.");
+                    return;
+                }
+                current.choices = List.copyOf(screens);
+                openPicker.accept(new ScreenChoice(current.id, current.peer, current.choices));
+            }));
+        } catch (RuntimeException | LinkageError failure) {
+            screenError("Não foi possível listar suas telas.");
+        }
+    }
+
+    void confirmScreen(String callId, VoiceEngine.Screen screen) {
+        var current = call;
+        if (current == null || !current.id.equals(callId) || current.phase != Phase.CONNECTED
+                || current.sharing != Sharing.CHOOSING) return;
+        boolean start = screen != null && current.choices.contains(screen);
+        current.choices = List.of();
+        current.sharing = start ? Sharing.STARTING : Sharing.OFF;
+        try {
+            if (start) current.engine.startScreen(screen);
+        } catch (RuntimeException | LinkageError failure) {
+            screenError("Não foi possível iniciar o compartilhamento.");
+            return;
+        }
+        publish();
+    }
+
+    void stopScreen() {
+        if (call == null || (call.sharing != Sharing.ON && call.sharing != Sharing.STARTING)) return;
+        call.sharing = Sharing.STOPPING;
+        try {
+            call.engine.stopScreen();
+        } catch (RuntimeException | LinkageError failure) {
+            // If capture cannot be stopped normally, close its owning media session.
+            terminate("Chamada encerrada para interromper o compartilhamento.", "callend");
+        }
+        publish();
+    }
+
+    ScreenFrames openViewer(String callId) {
+        if (call == null || !call.id.equals(callId) || !call.receiving || call.phase != Phase.CONNECTED) return null;
+        if (call.frames == null) {
+            call.frames = new ScreenFrames();
+            call.engine.onScreenFrame(call.frames::offer);
+        }
+        return call.frames;
+    }
+
+    void closeViewer(ScreenFrames frames) {
+        if (call != null && frames != null && call.frames == frames) detachViewer(call);
+    }
+
+    private void detachViewer(Call ended) {
+        if (ended.frames == null) return;
+        ended.frames.close();
+        ended.frames = null;
+        ended.engine.onScreenFrame(null);
+    }
+
+    private void screenError(String text) {
+        call.sharing = Sharing.OFF;
+        call.choices = List.of();
+        notice = text;
+        publish();
+    }
+
     void receive(Event event) {
         if (!online && !(switching && "voice".equals(event.type()))) return;
         if ("voice".equals(event.type())) {
@@ -112,7 +193,7 @@ final class VoiceController {
             if (!call.peer.equals(event.name()) && !("callerror".equals(event.type()) && event.name() == null)) return;
             switch (event.type()) {
                 case "callringing" -> { if (call.phase == Phase.OUTGOING) call.ringing = true; }
-                case "callready" -> ready(event.text());
+                case "callready" -> ready(event);
                 case "callsignal" -> forwardSignal(event.text());
                 case "callended" -> terminate(message(event.text(), "Chamada encerrada."), null);
                 case "callerror" -> handleError(event.text());
@@ -128,18 +209,20 @@ final class VoiceController {
         if (!available && call != null) terminate(availability, "callend");
     }
 
-    private void ready(String value) {
+    private void ready(Event ready) {
         var current = call;
         if (current.engine != null
                 || (current.phase != Phase.OUTGOING && current.phase != Phase.CONNECTING)) return;
         try {
-            var config = VoiceConfig.decode(value);
+            var config = VoiceConfig.decode(ready.text());
             if (config.caller() != current.caller) {
                 terminate("O servidor enviou uma configuração de voz inválida.", "callend");
                 return;
             }
             current.phase = Phase.CONNECTING;
             current.engine = engines.get();
+            current.canShare = ready.users() != null && ready.users().contains(VoiceConfig.SCREEN_CAPABILITY);
+            current.engine.enableScreenSharing(current.canShare);
             current.engine.start(config,
                     signal -> dispatch.execute(() -> outgoingSignal(current, signal)),
                     state -> dispatch.execute(() -> engineState(current, state)));
@@ -189,6 +272,20 @@ final class VoiceController {
             }
             case "disconnected" -> terminate("A conexão de áudio foi interrompida.", "callend");
             case "failed" -> terminate("Não foi possível conectar o áudio. Confira o microfone e a conexão.", "callend");
+            case "screenstarted" -> {
+                if (origin.sharing != Sharing.STARTING) return;
+                origin.sharing = Sharing.ON;
+            }
+            case "screenstopped" -> { if (origin.sharing != Sharing.CHOOSING) origin.sharing = Sharing.OFF; }
+            case "screenfailed" -> {
+                origin.sharing = Sharing.OFF;
+                notice = "Não foi possível compartilhar esta tela.";
+            }
+            case "remotescreenstarted" -> { if (origin.canShare) origin.receiving = true; }
+            case "remotescreenstopped" -> {
+                origin.receiving = false;
+                detachViewer(origin);
+            }
             default -> { return; }
         }
         publish();
@@ -201,6 +298,7 @@ final class VoiceController {
         retired.add(ended.id);
         if (retired.size() > 128) retired.removeFirst();
         if (ended.engine != null) {
+            detachViewer(ended);
             try { ended.engine.close(); }
             catch (RuntimeException | LinkageError ignored) { }
         }
@@ -231,7 +329,7 @@ final class VoiceController {
             else if (notice != null) text = notice;
             else if (canInvite()) text = "Ligar para " + selected + ".";
             else text = "Selecione outro participante para ligar.";
-            render.accept(new View(Phase.IDLE, canInvite(), false, text));
+            render.accept(new View(Phase.IDLE, canInvite(), false, text, null, null, false, Sharing.OFF, false));
             return;
         }
         String text = switch (call.phase) {
@@ -242,7 +340,8 @@ final class VoiceController {
             case IDLE -> throw new IllegalStateException();
         };
         if (notice != null) text += " · " + notice;
-        render.accept(new View(call.phase, false, call.muted, text));
+        render.accept(new View(call.phase, false, call.muted, text, call.id, call.peer,
+                call.canShare, call.sharing, call.receiving));
     }
 
     private static boolean validCallId(String value) {
@@ -263,6 +362,11 @@ final class VoiceController {
         VoiceEngine engine;
         boolean ringing;
         boolean muted;
+        boolean canShare;
+        Sharing sharing = Sharing.OFF;
+        List<VoiceEngine.Screen> choices = List.of();
+        boolean receiving;
+        ScreenFrames frames;
 
         Call(String id, String peer, boolean caller, Phase phase) {
             this.id = id;

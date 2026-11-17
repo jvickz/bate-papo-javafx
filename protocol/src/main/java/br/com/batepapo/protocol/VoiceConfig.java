@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public record VoiceConfig(List<IceServer> iceServers, boolean caller) {
+    public static final String SCREEN_CAPABILITY = "screen-v1";
     private static final ObjectMapper JSON = new ObjectMapper(JsonFactory.builder()
             .streamReadConstraints(StreamReadConstraints.builder().maxNestingDepth(6).maxStringLength(2048).build())
             .build()).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);

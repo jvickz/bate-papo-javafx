@@ -1,6 +1,6 @@
-WAVECOVE 1.7 — CHAMADA PRIVADA
+WAVECOVE 1.8 — CHAMADA PRIVADA
 
-Os dois participantes precisam usar o Wavecove 1.7, entrar com suas próprias contas e escolher o mesmo canal. O servidor precisa ter o serviço de voz configurado.
+Para conversar por voz, os dois participantes precisam usar o Wavecove 1.7 ou posterior, entrar com suas próprias contas e escolher o mesmo canal. O servidor precisa ter o serviço de voz configurado.
 
 1. Na lista de participantes, selecione a outra pessoa e use Ligar.
 2. A outra pessoa verá quem está ligando e poderá aceitar ou recusar.
@@ -20,6 +20,15 @@ após esse tempo é possível ligar novamente.
 
 Se aparecer voz indisponível, o proprietário precisa ativar o TURN.
 O chat de texto continua funcionando.
+
+COMPARTILHAR UM MONITOR
+
+Os dois participantes precisam usar a versão 1.8 ou posterior. Durante a chamada
+conectada, clique em Compartilhar tela, escolha o monitor e confirme em
+Compartilhar. Tudo o que aparecer nesse monitor ficará visível à outra pessoa.
+Ela pode clicar em Ver tela de…, usar Tamanho original para ler detalhes
+ou F11 para alternar a tela cheia. A resolução se adapta à conexão.
+Parar compartilhamento desliga a imagem e mantém a conversa por voz.
 
 Para o proprietário: veja docs/VOICE-SETUP.md no código-fonte.
 As chaves do provedor ficam no servidor; nunca no instalador, no código
