@@ -8,6 +8,7 @@ import javafx.scene.*;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -34,10 +35,14 @@ public final class ChatApp extends Application {
     private String myName;
     private long epoch;
     private boolean inRoom;
+    private boolean online;
+    private final PixelBackdrop backdrop = new PixelBackdrop();
+    private final ToggleButton motion = new ToggleButton("EFEITOS: ON");
     record Line(String id, String name, String text, String time, String delivery) {}
 
     @Override public void start(Stage stage) {
         this.stage = stage;
+        Font.loadFont(Objects.requireNonNull(getClass().getResource("/fonts/VT323-Regular.ttf")).toExternalForm(), 22);
         nickname.setId("nickname"); nickname.setPromptText("Como você quer ser chamado?");
         server.setId("server"); server.setPromptText("https://seu-servidor.onrender.com");
         server.setText(System.getenv().getOrDefault("BATEPAPO_SERVER", ""));
@@ -55,33 +60,49 @@ public final class ChatApp extends Application {
         messages.setPlaceholder(label("Sua próxima conversa começa com um oi.\nAs mensagens aparecem aqui.", "muted"));
         participants.setPlaceholder(label("Ninguém conectado", "muted"));
 
-        var root = new BorderPane(); root.setLeft(sidebar()); root.setCenter(content);
-        var heading = new VBox(5, label("Sala compartilhada", "title"), label("Simples. Próximo. Em tempo real.", "muted"));
+        var shell = new BorderPane(); shell.setLeft(sidebar()); shell.setCenter(content);
+        shell.getStyleClass().add("terminal-shell");
+        var root = new StackPane(backdrop, shell);
+        motion.setId("motionToggle"); motion.getStyleClass().add("motion-toggle");
+        motion.setAccessibleText("Pausar animação do fundo");
+        motion.setOnAction(e -> {
+            backdrop.setPaused(motion.isSelected());
+            motion.setText(motion.isSelected() ? "EFEITOS: OFF" : "EFEITOS: ON");
+            motion.setAccessibleText(motion.isSelected() ? "Retomar animação do fundo" : "Pausar animação do fundo");
+        });
+        var heading = new VBox(4, label("SALA / 01", "title"), label("CANAL DE CONVERSA", "eyebrow"));
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        var header = new HBox(16, heading, spacer, status); header.setAlignment(Pos.CENTER_LEFT); header.getStyleClass().add("header");
+        var header = new HBox(12, heading, spacer, motion, status); header.setAlignment(Pos.CENTER_LEFT); header.getStyleClass().add("header");
         content.setTop(header); showLogin();
         var scene = new Scene(root, 1080, 760); scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/chat.css")).toExternalForm());
         stage.setScene(scene); stage.setTitle("Bate-papo"); stage.setMinWidth(900); stage.setMinHeight(720);
+        stage.iconifiedProperty().addListener((o, before, after) -> refreshMotion());
+        stage.showingProperty().addListener((o, before, after) -> refreshMotion());
         stage.setOnCloseRequest(e -> stop()); stage.show();
     }
     private VBox sidebar() {
-        var subtitle = label("Uma boa conversa,\nmesmo de longe.", "muted");
-        var tile = new VBox(6, label("●  Sala compartilhada", "room-title"), label("Acesso por convite", "muted")); tile.getStyleClass().add("room-tile");
+        var subtitle = label("CONEXÃO REMOTA\nPESSOAS REAIS_", "muted");
+        var tile = new VBox(6, label("> SALA / 01", "room-title"), label("ACESSO POR CONVITE", "muted")); tile.getStyleClass().add("room-tile");
         var spacer = new Region(); VBox.setVgrow(spacer, Priority.ALWAYS);
         participants.setPrefHeight(190);
-        var box = new VBox(20, label("bate-papo", "brand"), subtitle, new Separator(), label("SEU ESPAÇO", "eyebrow"), tile,
-                peopleCount, participants, spacer, label("Feito para aproximar.", "muted"), label("Windows · versão 1.0", "muted"));
-        box.getStyleClass().add("sidebar"); box.setPrefWidth(250); return box;
+        var box = new VBox(20, label("bate-papo_", "brand"), subtitle, new Separator(), label("[ CANAIS ]", "eyebrow"), tile,
+                peopleCount, participants, spacer, label("FIM DA DISTÂNCIA.", "muted"), label("WINDOWS / v1.1", "muted"));
+        box.getStyleClass().add("sidebar"); box.setPrefWidth(224); return box;
     }
     private void showLogin() {
+        refreshMotion();
         content.setBottom(null);
         var explanation = label("Entre com seu apelido e o convite da sala.\nA outra pessoa usa o mesmo servidor e código.", "muted");
         error.setWrapText(true);
-        var card = new VBox(14, label("Vamos conversar?", "hero"), explanation,
+        var card = new VBox(14, label("[ INICIAR SESSÃO ]", "eyebrow"), label("Olá, visitante_", "hero"), explanation,
                 field("SEU APELIDO", nickname), field("ENDEREÇO DO SERVIDOR", server), field("CÓDIGO DE ACESSO", accessCode),
                 error, join, cancel, label("Quem tem o código pode entrar. Seu código não é salvo.", "muted"));
-        card.getStyleClass().add("card"); card.setMaxWidth(480); card.setMaxHeight(Region.USE_PREF_SIZE);
-        var center = new StackPane(card); center.setPadding(new Insets(24)); content.setCenter(center);
+        card.getStyleClass().add("card"); card.setMaxWidth(510); card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setMinHeight(Region.USE_PREF_SIZE);
+        var center = new StackPane(card); center.setPadding(new Insets(24)); center.setMinHeight(Region.USE_PREF_SIZE);
+        var scroll = new ScrollPane(center); scroll.setId("loginScroll"); scroll.getStyleClass().add("login-scroll");
+        scroll.setFitToWidth(true); scroll.setFitToHeight(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        content.setCenter(scroll);
         join.setDisable(false); nickname.setDisable(false); server.setDisable(false); accessCode.setDisable(false);
         nickname.requestFocus();
     }
@@ -102,6 +123,7 @@ public final class ChatApp extends Application {
     }
     private void showChat() {
         inRoom = true; cancel.setVisible(false); cancel.setManaged(false); accessCode.clear();
+        refreshMotion();
         content.setCenter(messages);
         var row = new HBox(12, composer, send); row.setAlignment(Pos.CENTER); HBox.setHgrow(composer, Priority.ALWAYS);
         var leave = new Button("Sair da sala"); leave.setOnAction(e -> leave());
@@ -118,7 +140,8 @@ public final class ChatApp extends Application {
         cancel.setVisible(false); cancel.setManaged(false); onState("disconnected"); showLogin(); stage.setTitle("Bate-papo");
     }
     private void onState(String state) {
-        boolean online = state.equals("connected");
+        online = state.equals("connected");
+        refreshMotion();
         status.setText(switch (state) { case "connected" -> "●  Conectado"; case "connecting" -> "Conectando…"; case "reconnecting" -> "Reconectando…"; default -> "Desconectado"; });
         status.getStyleClass().remove("online"); if (online) status.getStyleClass().add("online");
         send.setDisable(!online); composer.setDisable(!online);
@@ -138,6 +161,7 @@ public final class ChatApp extends Application {
             }
             case "system" -> append(new Line(null, null, e.text(), null, null));
             case "pending", "message" -> {
+                backdrop.pulse();
                 String delivery = e.type().equals("pending") ? "Enviando…" : Objects.equals(e.name(), myName) ? "Confirmada pelo servidor" : "";
                 var line = new Line(e.id(), e.name(), e.text(), e.time(), delivery);
                 int existing = index(e.id(), e.name()); if (existing >= 0) history.set(existing, line); else append(line);
@@ -171,7 +195,8 @@ public final class ChatApp extends Application {
     private static VBox field(String title, Control field) {
         var label = label(title, "field-label"); label.setLabelFor(field); return new VBox(0, label, field);
     }
-    @Override public void stop() { ++epoch; if (connection != null) connection.close(); }
+    private void refreshMotion() { backdrop.setActive(inRoom && online && stage != null && stage.isShowing() && !stage.isIconified()); }
+    @Override public void stop() { ++epoch; backdrop.close(); if (connection != null) connection.close(); }
     private final class MessageCell extends ListCell<Line> {
         @Override protected void updateItem(Line line, boolean empty) {
             super.updateItem(line, empty); setText(null); setGraphic(null);

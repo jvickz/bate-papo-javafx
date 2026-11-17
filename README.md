@@ -2,11 +2,13 @@
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Duas pessoas conectam ao mesmo servidor, com o mesmo código de acesso e apelidos diferentes, para conversar em tempo real.
 
+O cliente Windows 1.1 usa tema de terminal retrô, fonte pixelada, verde-fósforo e fundo animado. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens usam fonte monoespaçada para manter a leitura. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+
 ## Abrir o aplicativo
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `BatePapo-1.0.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `BatePapo-1.1.0.msi`: instalador para Windows x64, por usuário, com atalhos.
 - `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
 - `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
 

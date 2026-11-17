@@ -1,6 +1,6 @@
 BATE-PAPO — CONEXÃO PELA INTERNET
 
-Instale BatePapo-1.0.0.msi nos dois computadores Windows x64.
+Instale BatePapo-1.1.0.msi nos dois computadores Windows x64.
 Ou extraia BatePapo-Windows-x64.zip inteiro e abra BatePapo.exe.
 Java já está incluído.
 

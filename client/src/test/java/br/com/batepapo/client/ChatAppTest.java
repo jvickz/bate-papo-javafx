@@ -21,6 +21,47 @@ class ChatAppTest {
         Platform.startup(() -> { Platform.setImplicitExit(false); ready.countDown(); });
         assertTrue(ready.await(10, TimeUnit.SECONDS));
     }
+    private static void snapshot(Stage stage, String name) throws Exception {
+        String directory = System.getProperty("batepapo.screenshotDir");
+        if (directory == null) return;
+        stage.getScene().getRoot().applyCss(); stage.getScene().getRoot().layout();
+        var image = stage.getScene().snapshot(null);
+        var raster = new java.awt.image.BufferedImage((int) image.getWidth(), (int) image.getHeight(), java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        var reader = image.getPixelReader();
+        for (int y = 0; y < raster.getHeight(); y++) for (int x = 0; x < raster.getWidth(); x++) raster.setRGB(x, y, reader.getArgb(x, y));
+        var folder = java.nio.file.Path.of(directory); java.nio.file.Files.createDirectories(folder);
+        javax.imageio.ImageIO.write(raster, "png", folder.resolve(name + ".png").toFile());
+    }
+    @Test void connectionNoticeIsReachableAtMinimumWindowSize() throws Exception {
+        var app = new ChatApp();
+        Stage stage = fx(() -> { var window = new Stage(); app.start(window); window.setWidth(900); window.setHeight(720); return window; });
+        try {
+            fx(() -> {
+                ((TextField) stage.getScene().lookup("#nickname")).setText("Teste UI");
+                ((TextField) stage.getScene().lookup("#server")).setText("ws://localhost:1");
+                ((PasswordField) stage.getScene().lookup("#accessCode")).setText("test-only-invalid-endpoint-code");
+                ((Button) stage.getScene().lookup("#join")).fire(); return null;
+            });
+            // Exercise the longest connection-state notice without depending on retry timing.
+            fx(() -> {
+                var error = (Label) stage.getScene().lookup(".error");
+                error.setText("Tentando conectar. Confira o endereço ou aguarde o servidor iniciar.");
+                snapshot(stage, "login-small-connecting");
+                var card = (javafx.scene.layout.VBox) stage.getScene().lookup(".card");
+                assertTrue(card.getHeight() >= card.prefHeight(card.getWidth()) - 1, "Cartão não deve comprimir/cortar os textos");
+                var scroll = (ScrollPane) stage.getScene().lookup("#loginScroll");
+                assertNotNull(scroll, "Entrada deve permitir rolagem quando houver avisos");
+                scroll.setVvalue(1); stage.getScene().getRoot().layout();
+                var viewport = scroll.lookup(".viewport");
+                var visible = viewport.localToScene(viewport.getLayoutBounds());
+                var last = card.getChildren().getLast();
+                var notice = last.localToScene(last.getLayoutBounds());
+                assertTrue(notice.getMinY() >= visible.getMinY() && notice.getMaxY() <= visible.getMaxY() + 1, "Aviso final deve ser alcançável pela rolagem");
+                snapshot(stage, "login-small-scrolled");
+                return null;
+            });
+        } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
+    }
     @Test void loginComposeAndReceiveThroughRealControls() throws Exception {
         String token = "ui-integration-access-code-123456";
         var events = new CopyOnWriteArrayList<Event>();
@@ -30,6 +71,11 @@ class ChatAppTest {
             Stage stage = fx(() -> { var window = new Stage(); app.start(window); return window; });
             try {
                 fx(() -> {
+                    assertNotNull(stage.getScene().lookup("#pixelBackdrop"), "Fundo retrô deve existir");
+                    assertNotNull(stage.getScene().lookup("#motionToggle"), "Animação deve poder ser pausada");
+                    assertFalse(((PixelBackdrop) stage.getScene().lookup("#pixelBackdrop")).isRunning());
+                    assertTrue(javafx.scene.text.Font.getFamilies().contains("VT323"), "Fonte deve estar embutida");
+                    snapshot(stage, "login");
                     assertNotNull(stage.getScene().lookup("#nickname"), "Campo de apelido deve existir");
                     ((TextField) stage.getScene().lookup("#nickname")).setText("Teste UI");
                     ((TextField) stage.getScene().lookup("#server")).setText("ws://localhost:" + server.port());
@@ -52,6 +98,34 @@ class ChatAppTest {
                     Thread.sleep(30);
                 }
                 assertTrue(received);
+                fx(() -> { snapshot(stage, "conversation"); stage.setWidth(900); stage.setHeight(720); return null; });
+                fx(() -> { snapshot(stage, "conversation-small"); return null; });
+                var backdrop = fx(() -> (PixelBackdrop) stage.getScene().lookup("#pixelBackdrop"));
+                assertTrue(fx(backdrop::isRunning));
+                long before = fx(backdrop::frameCount);
+                Thread.sleep(180);
+                assertTrue(fx(backdrop::frameCount) > before, "Fundo deve animar na sala conectada");
+                fx(() -> { ((ToggleButton) stage.getScene().lookup("#motionToggle")).fire(); return null; });
+                assertFalse(fx(backdrop::isRunning));
+                long frozen = fx(backdrop::frameCount);
+                Thread.sleep(180);
+                assertEquals(frozen, fx(backdrop::frameCount));
+                fx(() -> { stage.setIconified(true); stage.setIconified(false); return null; });
+                assertFalse(fx(backdrop::isRunning), "Restaurar janela deve preservar pausa do usuário");
+                fx(() -> { ((ToggleButton) stage.getScene().lookup("#motionToggle")).fire(); return null; });
+                assertTrue(fx(backdrop::isRunning));
+                fx(() -> { stage.setIconified(true); return null; });
+                assertFalse(fx(backdrop::isRunning), "Janela minimizada não deve renderizar frames");
+                fx(() -> { stage.setIconified(false); return null; });
+                assertTrue(fx(backdrop::isRunning));
+                fx(() -> {
+                    stage.getScene().getRoot().lookupAll(".button").stream()
+                        .filter(n -> n instanceof Button b && b.getText().equals("Sair da sala"))
+                        .map(n -> (Button) n).findFirst().orElseThrow().fire();
+                    assertFalse(backdrop.isRunning(), "Sair deve parar o timer");
+                    app.stop(); backdrop.setActive(true);
+                    assertFalse(backdrop.isRunning(), "Timer fechado não deve reiniciar"); return null;
+                });
             } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
         }
     }
