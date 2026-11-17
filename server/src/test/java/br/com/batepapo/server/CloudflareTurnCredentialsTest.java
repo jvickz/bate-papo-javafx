@@ -21,17 +21,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CloudflareTurnCredentialsTest {
+    private static final byte[] VALID_ICE_RESPONSE = """
+            {"iceServers":[{"urls":["stun:stun.cloudflare.com:3478"]},
+                           {"urls":["turns:turn.cloudflare.com:443?transport=tcp"],
+                            "username":"temporary-user","credential":"temporary-password"}]}
+            """.getBytes(StandardCharsets.UTF_8);
+
     private HttpServer server;
 
     @BeforeEach void setUp() throws Exception { server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0); }
     @AfterEach void tearDown() { server.stop(0); }
 
     @Test void requestsOneHourCredentialsWithServerSideAuthorization() throws Exception {
-        byte[] body = """
-                {"iceServers":[{"urls":["stun:stun.cloudflare.com:3478"]},
-                               {"urls":["turns:turn.cloudflare.com:443?transport=tcp"],
-                                "username":"temporary-user","credential":"temporary-password"}]}
-                """.getBytes(StandardCharsets.UTF_8);
         var request = new AtomicReference<String>();
         server.createContext("/v1/turn/keys/key-id/credentials/generate-ice-servers", exchange -> {
             try (exchange) {
@@ -39,8 +40,8 @@ class CloudflareTurnCredentialsTest {
                         + exchange.getRequestHeaders().getFirst("Authorization") + " "
                         + exchange.getRequestHeaders().getFirst("Content-Type") + " "
                         + new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-                exchange.sendResponseHeaders(201, body.length);
-                exchange.getResponseBody().write(body);
+                exchange.sendResponseHeaders(201, VALID_ICE_RESPONSE.length);
+                exchange.getResponseBody().write(VALID_ICE_RESPONSE);
             }
         });
         server.start();
@@ -50,6 +51,23 @@ class CloudflareTurnCredentialsTest {
             assertEquals(2, servers.size());
             assertEquals("temporary-user", servers.getLast().username());
             assertEquals("temporary-password", servers.getLast().credential());
+        }
+    }
+
+    @Test void acceptsAFirstResponseThatTakesLongerThanFiveSeconds() throws Exception {
+        server.createContext("/", exchange -> {
+            try (exchange) {
+                TimeUnit.MILLISECONDS.sleep(5500);
+                exchange.sendResponseHeaders(201, VALID_ICE_RESPONSE.length);
+                exchange.getResponseBody().write(VALID_ICE_RESPONSE);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        server.start();
+        try (var turn = new CloudflareTurnCredentials("key-id", "test-api-token", localOrigin(server))) {
+            var servers = turn.issue().toCompletableFuture().get(15, TimeUnit.SECONDS);
+            assertEquals("temporary-user", servers.getLast().username());
         }
     }
 
@@ -129,7 +147,10 @@ class CloudflareTurnCredentialsTest {
     }
 
     private static CloudflareTurnCredentials provider(HttpServer server, Duration timeout) {
-        return new CloudflareTurnCredentials("key-id", "test-api-token",
-                URI.create("http://127.0.0.1:" + server.getAddress().getPort()), timeout);
+        return new CloudflareTurnCredentials("key-id", "test-api-token", localOrigin(server), timeout);
+    }
+
+    private static URI localOrigin(HttpServer server) {
+        return URI.create("http://127.0.0.1:" + server.getAddress().getPort());
     }
 }

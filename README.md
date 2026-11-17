@@ -38,7 +38,7 @@ Trocar de canal preserva rascunhos e histórico separado durante a sessão. **Co
 
 A versão 1.4 permite selecionar alguém no mesmo canal e ligar. A pessoa aceita ou recusa; o microfone só abre após o aceite. Há controles de silenciar e encerrar, indicação de conexão e duração. Sair, trocar de canal ou perder a conexão encerra a chamada; o chat não religa sozinho. Use fones e os dispositivos padrão de áudio do Windows.
 
-O servidor precisa do TURN configurado. Sem isso, o aplicativo informa voz indisponível e mantém o texto funcionando. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md) e [instruções de uso](docs/CHAMADAS-DE-VOZ.txt). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale 1.4 nos dois computadores; versões anteriores continuam compatíveis para texto.
+O servidor deste projeto já está com TURN configurado. Em 17/11/2026, o diagnóstico nativo confirmou áudio sintético nos dois sentidos usando relay da Cloudflare. Falta a verificação humana com microfones e computadores em redes diferentes. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md), [instruções de uso](docs/CHAMADAS-DE-VOZ.txt) e [evidências de validação](docs/VALIDACAO-1.4.md). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale 1.4 nos dois computadores; versões anteriores continuam compatíveis para texto. Instalações próprias sem TURN configurado mantêm o texto funcionando e informam voz indisponível.
 
 O WebRTC nativo é fornecido por [webrtc-java 1.0.1](https://github.com/devopvoid/webrtc-java). Os JARs distribuídos mantêm `META-INF/LICENSE`, `META-INF/NOTICE` e as licenças dos componentes nativos em `META-INF/licenses/`.
 

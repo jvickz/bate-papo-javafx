@@ -24,7 +24,7 @@ final class Room {
     private static final long ONE_SECOND = TimeUnit.SECONDS.toNanos(1);
     private static final long INVITE_TIMEOUT = TimeUnit.SECONDS.toNanos(30);
     private static final long INVITE_INTERVAL = TimeUnit.SECONDS.toNanos(3);
-    private static final long PROVISION_TIMEOUT = TimeUnit.SECONDS.toNanos(8);
+    private static final long PROVISION_TIMEOUT = TimeUnit.SECONDS.toNanos(15);
     private static final long NEGOTIATION_TIMEOUT = TimeUnit.SECONDS.toNanos(45);
     private static final long CREDENTIAL_LIFETIME = TimeUnit.MINUTES.toNanos(55);
     private static final int MAX_SIGNAL_BYTES = 10 * 1024;

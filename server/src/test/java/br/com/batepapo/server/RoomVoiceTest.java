@@ -137,6 +137,41 @@ class RoomVoiceTest {
         assertFalse(bia.received("callready"));
     }
 
+    @Test void waitsForSlowCredentialsAndStartsNegotiationAfterTheyArrive() {
+        var ana = login("Ana");
+        var bia = login("Bia");
+        String call = invite(ana, bia, "Bia");
+        bia.call("callaccept", call, null, null);
+
+        advance(10);
+        assertFalse(ana.received("callended"));
+        assertFalse(bia.received("callended"));
+        resolveCredentials();
+        assertEquals(call, ana.last("callready").id());
+        assertEquals(call, bia.last("callready").id());
+
+        keepOnline(ana, bia);
+        advance(4);
+        assertFalse(ana.received("callended"));
+        advance(1);
+        assertEnded(ana, bia, call);
+    }
+
+    @Test void timesOutAnUnresponsiveCredentialProviderAndIgnoresLateResults() {
+        var ana = login("Ana");
+        var bia = login("Bia");
+        String call = invite(ana, bia, "Bia");
+        bia.call("callaccept", call, null, null);
+
+        advance(14);
+        assertFalse(ana.received("callended"));
+        advance(1);
+        assertEnded(ana, bia, call);
+        resolveCredentials();
+        assertFalse(ana.received("callready"));
+        assertFalse(bia.received("callready"));
+    }
+
     @Test void providerFailureEndsTheCallWithoutLeakingAnErrorDetail() {
         var ana = login("Ana");
         var bia = login("Bia");

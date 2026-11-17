@@ -28,7 +28,11 @@ final class CloudflareTurnCredentials implements TurnCredentialsProvider {
     static CloudflareTurnCredentials configured(String keyId, String apiToken) {
         if (keyId == null || !keyId.matches("[A-Za-z0-9_-]{1,128}")
                 || apiToken == null || !apiToken.matches("[A-Za-z0-9_-]{1,256}")) return null;
-        return new CloudflareTurnCredentials(keyId, apiToken, CLOUDFLARE, Duration.ofSeconds(5));
+        return new CloudflareTurnCredentials(keyId, apiToken, CLOUDFLARE);
+    }
+
+    CloudflareTurnCredentials(String keyId, String apiToken, URI origin) {
+        this(keyId, apiToken, origin, Duration.ofSeconds(12));
     }
 
     CloudflareTurnCredentials(String keyId, String apiToken, URI origin, Duration timeout) {

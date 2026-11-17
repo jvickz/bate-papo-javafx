@@ -1,6 +1,6 @@
 # Chamadas privadas — 1.4
 
-O usuário aprovou chamadas privadas com aceite/recusa, WebRTC e TURN, para Windows/JavaFX. Ainda não possui conta Cloudflare. A implementação não depende da criação da conta; a ativação e validação do relay em produção dependem das credenciais e de eventual aceite de cobrança pelo usuário.
+O usuário aprovou chamadas privadas com aceite/recusa, WebRTC e TURN, para Windows/JavaFX. Em 17/11/2026, criou a conta Cloudflare, concluiu pessoalmente a ativação e autorizou criar a chave TURN e armazená-la no Render. O diagnóstico posterior confirmou relay e áudio sintético nos dois sentidos; o teste humano entre redes distintas permanece separado.
 
 ## Comportamento
 
@@ -18,7 +18,7 @@ Selecionar alguém na lista do canal e ligar. O destinatário pode aceitar ou re
 - `VoiceEngine` no client: `void start(VoiceConfig config, Consumer<String> signals, Consumer<String> states)`, `void signal(String json)`, `void setMuted(boolean muted)`, `void close()`. Estados: `connecting`, `connected`, `disconnected`, `failed`. Implementação `NativeVoiceEngine` assíncrona e callbacks seguros; fechar deve invalidar callbacks antigos, ser idempotente e liberar recursos. Nunca inicializar hardware no construtor.
 - Servidor valida autenticação, capacidade, canal, participante/role/estado da chamada e tamanho/rate dos sinais. Terceiros não podem atender, encerrar ou sinalizar chamadas alheias. Chamada acaba em disconnect, substituição de sessão, troca de canal, timeout de convite/negociação, shutdown.
 - TURN Cloudflare: `TURN_KEY_ID` e `TURN_API_TOKEN` apenas no ambiente do servidor. Credenciais temporárias obtidas após aceite, fora do monitor da sala, timeout e resposta limitados; resultados de chamadas encerradas descartados. TTL 3600s; encerrar sessão antes de expirar (55 minutos). Ausência ou erro de configuração não impede chat; informa indisponibilidade de voz. Provedor injetável permite testes sem cobrança. Não oferecer STUN público como garantia de funcionamento entre redes.
-- Negociação tem limite de 45 segundos; ambos enviam `callconnected` ao conectar para cancelar esse prazo. Credenciais não renovadas silenciosamente nesta versão.
+- Preparação permite 12 segundos de HTTP para o provedor e 15 segundos no estado da sala, após observar timeout no limite anterior de 5 segundos seguido de sucesso em nova tentativa. Negociação tem limite de 45 segundos; ambos enviam `callconnected` ao conectar para cancelar esse prazo. Credenciais não renovadas silenciosamente nesta versão.
 
 ## Validação
 

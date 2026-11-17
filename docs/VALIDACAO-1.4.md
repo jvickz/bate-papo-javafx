@@ -16,7 +16,7 @@ O reator Maven completo passou às 12:55:44 (São Paulo): **80 casos, 79 aprovad
 
 ## Limites
 
-Não houve teste com microfone ou alto-falantes físicos nem audição entre duas pessoas. A conta Cloudflare foi acessada, mas a tela de ativação exige cadastrar pagamento e aceitar cobrança de excedente. Nenhum serviço pago foi ativado pelo agente; sem essa ativação e credenciais, o relay real permanece pendente. O teste local de RTP não comprova conectividade TURN entre redes distintas.
+Não houve teste com microfone ou alto-falantes físicos nem audição entre duas pessoas. O proprietário concluiu pessoalmente a ativação e autorização de cobrança na Cloudflare e aprovou criar a chave TURN `bate-papo-javafx` e salvar ID/segredo nas variáveis do Render. O diagnóstico real abaixo valida tráfego por relay a partir desta máquina; não substitui o teste humano em duas redes diferentes.
 
 O instalador não contém chave permanente de TURN nem código de acesso da sala. Os JARs originais e seus avisos de licença são mantidos. O pacote é local; não foi publicada uma release binária no GitHub.
 
@@ -29,6 +29,18 @@ SHA-256:
 - MSI: `6F2E78D1BA7CCED5B6A4820178372AFAB3095EBDACAAFF53A364DC4BF5250167`
 - ZIP: `4A2E3D3B9DFB029EF5DDC5B8C2D1CA2CFC11857BFE90C7E8ED0BAD52B361847C`
 
-Código publicado no commit `e4f25fc00991763b2a9ad2f57d6abff02eff5cef`. Deploy Render `dep-dbu7isbl550s73a5rt9g` ficou `live` às 15:58:45 UTC. Após a publicação, `https://bate-papo-java.onrender.com/health` respondeu HTTP 200 com `{"status":"ok"}`; não havia logs de erro na janela consultada. Isso confirma o servidor de chat disponível, não a ativação de TURN.
+Código do cliente publicado no commit `e4f25fc00991763b2a9ad2f57d6abff02eff5cef`. Deploy Render `dep-dbu7isbl550s73a5rt9g` ficou `live` às 15:58:45 UTC. Após a publicação, `https://bate-papo-java.onrender.com/health` respondeu HTTP 200 com `{"status":"ok"}`; não havia logs de erro na janela consultada. A configuração TURN e sua validação ocorreram depois, conforme abaixo.
+
+## Relay Cloudflare real
+
+Após aprovação explícita do proprietário, a chave foi criada na Cloudflare e transferida diretamente para `TURN_KEY_ID` e `TURN_API_TOKEN` no serviço existente do Render, preservando `CHAT_ACCESS_TOKEN`. Nenhum segredo permanente foi salvo no código, pacote ou relatório. O deploy `dep-dbu7qmvf3r2c73d9oc3g` ativou as variáveis às 16:14:49 UTC.
+
+O diagnóstico manual `TurnRelayDiagnostic`, separado do aplicativo distribuído, abriu duas sessões WSS autenticadas com apelidos temporários, trocou convite/aceite e recebeu credenciais efêmeras individuais. Os dois peers nativos usaram `AudioMode.HEADLESS` e `relayOnly(true)`. O sucesso exige candidato selecionado `relay`, PCM não silencioso decodificado e contadores positivos de RTP de áudio em ambos os sentidos. Usa o runtime e as bibliotecas do pacote Windows 1.4; não acessa microfone ou alto-falantes.
+
+A primeira tentativa falhou na preparação. Instrumentação com códigos fixos, publicada em `cc7408a` / `dep-dbu7ub7f3r2c73da5blg`, identificou timeout de 5 segundos nas duas requisições. Uma nova tentativa às 16:24 UTC concluiu com **OK — relay TURN selecionado nos dois peers. Áudio PCM e RTP recebidos nos dois sentidos.** Isso confirma chave, autenticação, resposta HTTP 201, configuração ICE, sinalização online e mídia por TURN. Não identifica qual fase da primeira requisição causou o atraso.
+
+O teste adicional do provedor confirmou que os diagnósticos omitem segredo, ID da chave, token e resposta bruta: cinco testes focados passaram antes de publicar a instrumentação. O procedimento reproduzível está em [VOICE-SETUP.md](VOICE-SETUP.md#diagnóstico-local-do-relay-turn).
+
+Para tolerar demora transitória, o prazo HTTP passou de 5 para 12 segundos e o prazo de preparação da sala de 8 para 15 segundos. As três regressões novas falharam com os limites anteriores e passaram após a alteração: resposta HTTP local após 5,5 segundos, credenciais prontas aos 10 segundos e expiração aos 15 segundos com descarte do resultado tardio. A negociação permanece com 45 segundos contados após as credenciais. A suíte completa de protocolo/servidor passou às 13:29:39 (São Paulo): **45 testes, zero falhas/erros/ignorados**. Revisão independente aprovada. O cliente de produção e os binários 1.4 permanecem os mesmos.
 
 Instruções para o proprietário: [VOICE-SETUP.md](VOICE-SETUP.md). Instruções de chamada: [CHAMADAS-DE-VOZ.txt](CHAMADAS-DE-VOZ.txt).
