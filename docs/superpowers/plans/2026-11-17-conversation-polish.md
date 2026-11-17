@@ -6,10 +6,10 @@
 **Spec:** ../specs/2026-11-17-conversation-polish-design.md
 
 ## Tasks
-- [ ] Conexão: teste RED/GREEN para rejeição de mensagem após enfileirar; pending antes de erro recuperável, estado e erros de rede úteis sem segredos. ChatConnection + seus testes.
-- [ ] Diagnóstico: ServerCheck implements AutoCloseable; CompletableFuture<Result> check(String), Result(boolean reachable,String message), sem credenciais, timeout e validação health. Testes HTTP reais. Tema CSS com legibilidade e hierarquia preservando pixel art.
-- [ ] Interface: testes RED/GREEN de rascunho/histórico ao voltar de canal, convite sem código e contador Unicode. Memória efêmera, verificar servidor, copiar convite, recuperar mensagem, acompanhamento manual de rolagem e layout 900×720.
-- [ ] Revisão integrada e suíte; empacotar 1.3.0, conferir capturas e hashes, sincronizar workspace e publicar código aprovado pelas verificações.
+- [x] Conexão: teste RED/GREEN para rejeição de mensagem após enfileirar; pending antes de erro recuperável, estado e erros de rede úteis sem segredos. ChatConnection + seus testes.
+- [x] Diagnóstico: ServerCheck implements AutoCloseable; CompletableFuture<Result> check(String), Result(boolean reachable,String message), sem credenciais, timeout e validação health. Testes HTTP reais. Tema CSS com legibilidade e hierarquia preservando pixel art.
+- [x] Interface: testes RED/GREEN de rascunho/histórico ao voltar de canal, convite sem código e contador Unicode. Memória efêmera, verificar servidor, copiar convite, recuperar mensagem, acompanhamento manual de rolagem e layout 900×720.
+- [x] Revisão integrada e suíte; empacotar 1.3.0, conferir capturas e hashes, sincronizar workspace e publicar código aprovado pelas verificações.
 
 ## Constraints / Review Focus
 - WSS fora de loopback, mesma autenticação, nenhum segredo em convite/disco/log.

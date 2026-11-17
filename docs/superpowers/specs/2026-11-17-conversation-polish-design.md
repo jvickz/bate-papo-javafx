@@ -9,3 +9,5 @@ Entregas: rascunho e histórico separados por canal durante a sessão (até 500 
 Não afirmar recebimento/leitura da outra pessoa apenas por eco do servidor. Não introduzir contas, histórico offline, canais privados, chamadas ou serviços pagos. Duas sessões locais via servidor público comprovam transporte externo, mas teste entre redes diferentes exige a segunda pessoa.
 
 Verificação: testes reais de fila/queda, diagnósticos HTTP, JavaFX com troca e retorno de canal, limites Unicode e convite sem segredo. Build MSI/ZIP 1.3.0, capturas normal/mínima, revisão independente e publicação do código. Só atualizar servidor se houver mudança de servidor/protocolo.
+
+Esclarecimento do usuário: apelidos dificultam a entrada. Entrega adicional: apelido gerado válido, botão Gerar outro e código preservado em conflito de nome, sem remover autenticação.
