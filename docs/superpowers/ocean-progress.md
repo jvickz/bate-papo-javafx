@@ -1,0 +1,12 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-11-17-ocean-channels.md
+
+Base: 29e45cd. Branch isolada feat/ocean-channels no clone AppData existente; workspace original sincronizado ao final.
+Ruling: pedido explícito cobre implementação/publicação pública e teste; escolhas de apresentação e canais comunicadas ao usuário. Preservar autenticação ao tornar código público.
+Preflight: backend possui protocol/* e server/*; visual possui PixelBackdrop.java e chat.css; integração possui ChatConnection/ChatApp/testes cliente/scripts/docs. Sem escrita compartilhada. Compilação integrada somente após contrato de protocolo entregue; testes do backend podem rodar isolados com -pl server -am.
+Contract: Event nove componentes, channel ao final, construtor antigo de oito preservado. hello.id=channels-v1; hello.channel canal solicitado. welcome.channel canal confirmado. channels.users catálogo. create/join têm id UUID de solicitação e channel destino. joined ecoa id e channel. Mensagens/presença/system novos levam channel; legados recebem eventos originais sem campo extra. Erros de canal ecoam id da solicitação, sem desconectar.
+Task backend: complete — RED decode/channel e 6 cenários Room; GREEN 23 testes protocolo/servidor. Isolamento, validação, máximo20, legenda em geral e reentrância cobertos.
+Task visual: complete — barco desenhado por sprite próprio em Canvas, ondas/reflexos/luar e paleta azul/turquesa/âmbar; API/lifecycle preservados. Capturas normal/mínima inspecionadas.
+Task client: complete — create/join correlacionados, timeout força reconexão para sincronizar destino; envio bloqueado enquanto troca; filtro do canal anterior; lista/criação e segunda janela na interface. Teste UI cria porto e conversa com segundo cliente. Ajustada espera do teste de reinício para contar welcome, pois connected também ocorre após trocar canal.
+Review: independente sem defeitos confirmados; reforçados testes de não recebimento após barreira joined e de ack antigo/mensagem de outro canal ignorados.
+Verification: package-windows.ps1 -Installer executou suíte completa: 35 casos, 34 aprovados, 1 smoke externo ignorado, BUILD SUCCESS em 17/11/2026 11:32:33. Pacote1.2 em dist/20261117-113233.
+Publicação: usuário confirmou reautenticação no navegador. GitHub get_repo confirmou visibility=public. Auditoria histórica examinou61 blobs texto, sem padrões de credencial identificados; diretórios locais/segredos/artefatos não rastreados. Credencial enviada na conversa não foi usada nem escrita em arquivos.

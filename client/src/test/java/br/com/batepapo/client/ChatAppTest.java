@@ -73,6 +73,8 @@ class ChatAppTest {
                 fx(() -> {
                     assertNotNull(stage.getScene().lookup("#pixelBackdrop"), "Fundo retrô deve existir");
                     assertNotNull(stage.getScene().lookup("#motionToggle"), "Animação deve poder ser pausada");
+                    assertNotNull(stage.getScene().lookup("#channels"), "Lista de canais deve existir");
+                    assertTrue(((Button) stage.getScene().lookup("#createChannel")).isDisabled(), "Criar canal exige conexão");
                     assertFalse(((PixelBackdrop) stage.getScene().lookup("#pixelBackdrop")).isRunning());
                     assertTrue(javafx.scene.text.Font.getFamilies().contains("VT323"), "Fonte deve estar embutida");
                     snapshot(stage, "login");
@@ -98,6 +100,27 @@ class ChatAppTest {
                     Thread.sleep(30);
                 }
                 assertTrue(received);
+                fx(() -> {
+                    ((TextField) stage.getScene().lookup("#channelName")).setText("porto");
+                    ((Button) stage.getScene().lookup("#createChannel")).fire(); return null;
+                });
+                long channelEnd = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                while (!fx(() -> "#porto".equals(((Label) stage.getScene().lookup("#channelHeading")).getText())) && System.nanoTime() < channelEnd) Thread.sleep(30);
+                fx(() -> {
+                    assertEquals("#porto", ((Label) stage.getScene().lookup("#channelHeading")).getText());
+                    assertFalse(((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains("Resposta recebida!"), "Trocar canal limpa histórico anterior");
+                    return null;
+                });
+                peer.joinChannel("porto");
+                ChatConnectionTest.await(() -> events.stream().anyMatch(e -> "joined".equals(e.type()) && "porto".equals(e.channel())));
+                peer.send("Bem-vindo a bordo. Vamos conversar? ⛵");
+                boolean channelReceived = false;
+                while (!channelReceived && System.nanoTime() < channelEnd) {
+                    channelReceived = fx(() -> ((ListView<?>) stage.getScene().lookup("#messages")).getItems().toString().contains("Bem-vindo a bordo")); Thread.sleep(30);
+                }
+                assertTrue(channelReceived);
+                fx(() -> { ((TextArea) stage.getScene().lookup("#composer")).setText("Tudo certo por aqui. Mar tranquilo! 🌊"); ((Button) stage.getScene().lookup("#send")).fire(); return null; });
+                ChatConnectionTest.await(() -> events.stream().anyMatch(e -> "message".equals(e.type()) && "Tudo certo por aqui. Mar tranquilo! 🌊".equals(e.text())));
                 fx(() -> { snapshot(stage, "conversation"); stage.setWidth(900); stage.setHeight(720); return null; });
                 fx(() -> { snapshot(stage, "conversation-small"); return null; });
                 var backdrop = fx(() -> (PixelBackdrop) stage.getScene().lookup("#pixelBackdrop"));

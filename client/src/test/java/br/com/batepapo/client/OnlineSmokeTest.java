@@ -29,6 +29,18 @@ class OnlineSmokeTest {
             await(() -> eb.stream().anyMatch(e -> first.equals(e.id()) && "message".equals(e.type())));
             String reply = b.send("Resposta recebida ✓");
             await(() -> ea.stream().anyMatch(e -> reply.equals(e.id()) && "message".equals(e.type())));
+            await(() -> ea.stream().anyMatch(e -> "channels".equals(e.type())));
+            boolean channelExists = ea.stream().filter(e -> "channels".equals(e.type())).toList().getLast().users().contains("teste-rede");
+            if (channelExists) a.joinChannel("teste-rede"); else a.createChannel("teste-rede");
+            await(() -> ea.stream().anyMatch(e -> "joined".equals(e.type()) && "teste-rede".equals(e.channel())));
+            String isolated = a.send("Mensagem isolada no canal de teste");
+            await(() -> ea.stream().anyMatch(e -> isolated.equals(e.id()) && "message".equals(e.type())));
+            assertTrue(eb.stream().noneMatch(e -> isolated.equals(e.id())), "Outro canal não deve receber a mensagem");
+            b.joinChannel("teste-rede");
+            await(() -> eb.stream().anyMatch(e -> "joined".equals(e.type()) && "teste-rede".equals(e.channel())));
+            assertTrue(eb.stream().noneMatch(e -> isolated.equals(e.id())), "Nenhum vazamento antes da barreira de troca");
+            String joinedReply = b.send("Canal online confirmado ⛵");
+            await(() -> ea.stream().anyMatch(e -> joinedReply.equals(e.id()) && "message".equals(e.type()) && "teste-rede".equals(e.channel())));
             rejected.connect(url, "Sem acesso " + suffix, UUID.randomUUID().toString());
             await(() -> bad.stream().anyMatch(e -> "error".equals(e.type()) && "auth".equals(e.id())));
             assertTrue(bad.stream().noneMatch(e -> "presence".equals(e.type()) || "message".equals(e.type())));

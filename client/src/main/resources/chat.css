@@ -1,52 +1,180 @@
-.root { -fx-font-family: "VT323"; -fx-font-size: 22px; -fx-background-color: #060d0b; -fx-text-fill: #a8edbd; -fx-focus-color: #91ffc0; -fx-faint-focus-color: transparent; }
-.terminal-shell { -fx-background-color: transparent; -fx-border-color: #28533c; -fx-border-width: 1; }
-.label { -fx-text-fill: #b8e6c7; }
-.sidebar { -fx-background-color: rgba(7, 17, 13, 0.94); -fx-border-color: transparent #294c39 transparent transparent; -fx-padding: 30 20; -fx-spacing: 20; }
-.brand { -fx-font-size: 34px; -fx-text-fill: #9affbe; }
-.sidebar .muted { -fx-text-fill: #779b83; -fx-font-size: 18px; }
-.eyebrow { -fx-font-size: 17px; -fx-text-fill: #76ab89; }
-.room-tile { -fx-background-color: #11261b; -fx-border-color: #3c7852; -fx-border-width: 1 1 1 3; -fx-padding: 14 12; -fx-spacing: 5; }
-.room-title { -fx-font-size: 22px; -fx-text-fill: #b3ffca; }
-.sidebar .list-view { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; }
-.sidebar .list-cell { -fx-background-color: transparent; -fx-text-fill: #acebc0; -fx-padding: 8 2; -fx-font-family: "Consolas"; -fx-font-size: 13px; }
-.sidebar .list-cell:filled:selected { -fx-background-color: #173723; }
-.separator .line { -fx-border-color: #284333; -fx-border-width: 1 0 0 0; }
-.header { -fx-padding: 20 24; -fx-background-color: rgba(7, 17, 13, 0.95); -fx-border-color: transparent transparent #294c39 transparent; }
-.title { -fx-font-size: 30px; -fx-text-fill: #c2ffd6; }
-.muted { -fx-text-fill: #88a993; -fx-font-size: 18px; }
-.hero { -fx-font-size: 42px; -fx-text-fill: #bcffcf; }
-.card { -fx-background-color: rgba(10, 22, 15, 0.97); -fx-border-color: #4f8660; -fx-border-width: 1; -fx-padding: 26 28; -fx-spacing: 12; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 30, 0, 0, 8); }
-.login-scroll, .login-scroll > .viewport { -fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0; -fx-border-width: 0; }
-.field-label { -fx-font-size: 17px; -fx-text-fill: #83b594; -fx-padding: 0 0 5 0; }
-.text-field, .text-area { -fx-font-family: "Consolas"; -fx-font-size: 14px; -fx-background-color: #050d08; -fx-border-color: #355d41; -fx-border-width: 1; -fx-border-radius: 0; -fx-background-radius: 0; -fx-padding: 11 12; -fx-prompt-text-fill: #758a7c; -fx-text-fill: #d5efdc; -fx-highlight-fill: #29553b; -fx-highlight-text-fill: #ffffff; }
-.text-field:focused, .text-area:focused { -fx-border-color: #a2ffc0; -fx-background-color: #08150d; }
+.root {
+    -fx-font-family: "VT323";
+    -fx-font-size: 22px;
+    -fx-background-color: #091125;
+    -fx-text-fill: #d2e9eb;
+    -fx-focus-color: #85ecdc;
+    -fx-faint-focus-color: transparent;
+}
+
+.terminal-shell { -fx-background-color: transparent; -fx-border-color: #355366; -fx-border-width: 1; }
+.label { -fx-text-fill: #d2e9eb; }
+.sidebar {
+    -fx-background-color: rgba(8, 19, 32, 0.95);
+    -fx-border-color: transparent #355366 transparent transparent;
+    -fx-padding: 22 17;
+    -fx-spacing: 13;
+}
+.brand { -fx-font-size: 36px; -fx-text-fill: #a8f2e6; }
+.muted { -fx-text-fill: #adc4cd; -fx-font-size: 18px; }
+.sidebar .muted { -fx-text-fill: #9bb6c2; -fx-font-size: 17px; }
+.eyebrow, .channel-heading { -fx-font-size: 17px; -fx-text-fill: #80c7c8; }
+.room-tile {
+    -fx-background-color: #13283a;
+    -fx-border-color: #36566a #36566a #36566a #7accc5;
+    -fx-border-width: 1 1 1 3;
+    -fx-padding: 12 10;
+    -fx-spacing: 4;
+}
+.room-title { -fx-font-size: 22px; -fx-text-fill: #c6f1ee; }
+.sidebar .list-view {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+.sidebar .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cee4e8;
+    -fx-padding: 5 8;
+    -fx-font-family: "Consolas";
+    -fx-font-size: 13px;
+}
+.sidebar .list-cell:filled:hover { -fx-background-color: #132c3e; }
+.sidebar .list-cell:filled:selected { -fx-background-color: #1a4052; -fx-text-fill: #c9fff6; }
+.sidebar .channel-list {
+    -fx-background-color: #0c1a29;
+    -fx-border-color: #30495b;
+    -fx-border-width: 1;
+    -fx-pref-height: 116px;
+    -fx-min-height: 68px;
+}
+.sidebar .channel-list:focused { -fx-border-color: #85ecdc; }
+.channel-list .list-cell { -fx-cell-size: 28px; }
+.channel-create-row { -fx-alignment: center-left; -fx-spacing: 6; }
+.text-field.channel-name { -fx-font-size: 13px; -fx-padding: 6 7; -fx-min-width: 0; -fx-pref-width: 86px; }
+.button.create-channel { -fx-font-size: 17px; -fx-padding: 6 8; }
+.button.create-channel:focused { -fx-padding: 5 7; }
+.separator .line { -fx-border-color: #2a4255; -fx-border-width: 1 0 0 0; }
+
+.header {
+    -fx-padding: 18 24;
+    -fx-background-color: rgba(8, 19, 32, 0.94);
+    -fx-border-color: transparent transparent #355366 transparent;
+}
+.title { -fx-font-size: 32px; -fx-text-fill: #d5f4f1; }
+.hero { -fx-font-size: 42px; -fx-text-fill: #d5f4f1; }
+.card {
+    -fx-background-color: rgba(11, 24, 39, 0.97);
+    -fx-border-color: #48687c #48687c #48687c #7accc5;
+    -fx-border-width: 1 1 1 3;
+    -fx-padding: 26 28;
+    -fx-spacing: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 30, 0, 0, 8);
+}
+.login-scroll, .login-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+}
+
+.field-label { -fx-font-size: 17px; -fx-text-fill: #a3d5d6; -fx-padding: 0 0 5 0; }
+.text-field, .text-area {
+    -fx-font-family: "Consolas";
+    -fx-font-size: 14px;
+    -fx-background-color: #091626;
+    -fx-background-insets: 0;
+    -fx-border-color: #415f75;
+    -fx-border-width: 1;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-padding: 11 12;
+    -fx-prompt-text-fill: #8ba5b5;
+    -fx-text-fill: #e0eef1;
+    -fx-highlight-fill: #28616d;
+    -fx-highlight-text-fill: #ffffff;
+}
+.text-field:focused, .text-area:focused { -fx-border-color: #85ecdc; -fx-background-color: #0c2031; }
 .text-area .content, .text-area .scroll-pane, .text-area .viewport { -fx-background-color: transparent; }
-.button, .toggle-button { -fx-cursor: hand; -fx-font-family: "VT323"; -fx-font-size: 22px; -fx-padding: 10 18; -fx-background-radius: 0; -fx-border-radius: 0; -fx-border-width: 1; -fx-border-color: #426c4e; -fx-background-color: #14281b; -fx-text-fill: #ade3bc; }
-.button:hover, .toggle-button:hover { -fx-background-color: #223e2b; -fx-border-color: #91e5ae; }
-.button:focused, .toggle-button:focused { -fx-border-color: #d4ffdf; -fx-border-width: 2; -fx-padding: 9 17; }
-.primary { -fx-background-color: #a3efb6; -fx-border-color: #c6ffd5; -fx-text-fill: #07190d; }
-.primary:hover { -fx-background-color: #ccffdb; }
+.button, .toggle-button {
+    -fx-cursor: hand;
+    -fx-font-family: "VT323";
+    -fx-font-size: 22px;
+    -fx-padding: 10 18;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+    -fx-border-color: #496e80;
+    -fx-background-color: #152e42;
+    -fx-text-fill: #c6e6e9;
+}
+.button:hover, .toggle-button:hover { -fx-background-color: #1f4659; -fx-border-color: #75ccc7; }
+.button:focused, .toggle-button:focused { -fx-border-color: #c6fff6; -fx-border-width: 2; -fx-padding: 9 17; }
+.primary { -fx-background-color: #8ee3d5; -fx-border-color: #b5f6ea; -fx-text-fill: #0a2430; }
+.primary:hover { -fx-background-color: #bbf5ea; }
+.primary:focused { -fx-border-color: #e0fffa; }
+.demo-button { -fx-background-color: #292a31; -fx-border-color: #92765b; -fx-text-fill: #f3d2a4; }
+.demo-button:hover { -fx-background-color: #3e3435; -fx-border-color: #e9b982; }
+.demo-button:focused { -fx-border-color: #ffe3b5; }
 .button:disabled { -fx-opacity: 0.45; }
 .motion-toggle { -fx-font-size: 17px; -fx-padding: 7 10; -fx-min-width: 110; }
 .motion-toggle:focused { -fx-padding: 6 9; }
-.motion-toggle:selected { -fx-background-color: #0b150e; -fx-text-fill: #839b89; }
-.pill { -fx-background-color: #14251a; -fx-border-color: #35533f; -fx-border-width: 1; -fx-padding: 6 10; -fx-font-size: 18px; -fx-text-fill: #97afa0; }
-.pill.online { -fx-background-color: #163321; -fx-text-fill: #b5ffc9; -fx-border-color: #5e9b70; }
-.error { -fx-text-fill: #ffb98a; -fx-font-family: "Consolas"; -fx-font-size: 12px; }
-.messages, .messages .virtual-flow, .messages .clipped-container, .messages .sheet { -fx-background-color: transparent; }
-.messages { -fx-padding: 18 20; -fx-border-width: 0; }
+.motion-toggle:selected { -fx-background-color: #0a1a2a; -fx-text-fill: #a5bbca; }
+.pill {
+    -fx-background-color: #15283a;
+    -fx-border-color: #43586b;
+    -fx-border-width: 1;
+    -fx-padding: 6 10;
+    -fx-font-size: 18px;
+    -fx-text-fill: #b4c6d0;
+}
+.pill.online { -fx-background-color: #12353f; -fx-text-fill: #baffeb; -fx-border-color: #519990; }
+.error { -fx-text-fill: #ffcc9b; -fx-font-family: "Consolas"; -fx-font-size: 12px; }
+
+.messages .virtual-flow, .messages .clipped-container, .messages .sheet { -fx-background-color: transparent; }
+.messages {
+    -fx-background-color: rgba(5, 13, 24, 0.10);
+    -fx-background-insets: 0;
+    -fx-padding: 18 20;
+    -fx-border-width: 0;
+}
 .messages .list-cell { -fx-background-color: transparent; -fx-padding: 6 8; }
-.bubble { -fx-background-color: rgba(13, 29, 19, 0.97); -fx-border-color: #355d42; -fx-border-width: 1 1 1 3; -fx-padding: 12 16; -fx-spacing: 7; }
-.bubble.own { -fx-background-color: rgba(20, 43, 28, 0.98); -fx-border-color: #629472; -fx-border-width: 1 3 1 1; }
-.sender { -fx-font-size: 20px; -fx-text-fill: #a5eeb9; }
-.message-text { -fx-font-family: "Consolas"; -fx-font-size: 15px; -fx-text-fill: #d3e8da; }
-.message-meta { -fx-font-family: "Consolas"; -fx-font-size: 10px; -fx-text-fill: #8eae97; }
-.system-message { -fx-font-family: "Consolas"; -fx-font-size: 11px; -fx-text-fill: #94b69d; -fx-padding: 7; }
-.composer { -fx-background-color: rgba(7, 17, 13, 0.96); -fx-padding: 16 24; -fx-spacing: 8; -fx-border-color: #294c39 transparent transparent transparent; }
+.bubble {
+    -fx-background-color: #102235;
+    -fx-border-color: #3a596f #3a596f #3a596f #64a8af;
+    -fx-border-width: 1 1 1 3;
+    -fx-padding: 10 14;
+    -fx-spacing: 5;
+}
+.bubble.own {
+    -fx-background-color: #173345;
+    -fx-border-color: #486e7b #8adad0 #486e7b #486e7b;
+    -fx-border-width: 1 3 1 1;
+}
+.sender { -fx-font-size: 21px; -fx-text-fill: #a8e7dc; }
+.message-text { -fx-font-family: "Consolas"; -fx-font-size: 15px; -fx-text-fill: #e4eff1; }
+.message-meta { -fx-font-family: "Consolas"; -fx-font-size: 11px; -fx-text-fill: #a5c0ca; }
+.system-message {
+    -fx-font-family: "Consolas";
+    -fx-font-size: 11px;
+    -fx-text-fill: #bad0db;
+    -fx-background-color: rgba(8, 19, 32, 0.78);
+    -fx-padding: 5 8;
+}
+.composer {
+    -fx-background-color: rgba(8, 19, 32, 0.94);
+    -fx-padding: 14 24;
+    -fx-spacing: 8;
+    -fx-border-color: #355366 transparent transparent transparent;
+}
 .composer .muted { -fx-font-size: 17px; }
-.scroll-bar { -fx-background-color: #09170f; -fx-pref-width: 10; }
-.scroll-bar .thumb { -fx-background-color: #355d42; -fx-background-radius: 0; }
+
+.scroll-bar { -fx-background-color: #0b1929; -fx-pref-width: 10; }
+.scroll-bar .thumb { -fx-background-color: #405f73; -fx-background-radius: 0; }
+.scroll-bar .thumb:hover { -fx-background-color: #547d8b; }
 .scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-background-color: transparent; -fx-padding: 2; }
-.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-background-color: #6e9c7b; }
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-background-color: #8ba9b6; }
 .corner { -fx-background-color: transparent; }
-.tooltip { -fx-font-family: "Consolas"; -fx-font-size: 12px; -fx-background-color: #14281b; -fx-text-fill: #d3e8da; }
+.tooltip { -fx-font-family: "Consolas"; -fx-font-size: 12px; -fx-background-color: #152e42; -fx-text-fill: #e4eff1; }

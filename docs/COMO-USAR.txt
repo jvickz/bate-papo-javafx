@@ -1,6 +1,6 @@
 BATE-PAPO — WINDOWS x64
 
-1. Se recebeu BatePapo-1.1.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
+1. Se recebeu BatePapo-1.2.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
    Se recebeu um ZIP, extraia tudo antes de abrir BatePapo.exe.
    Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
    Não precisa instalar Java separadamente.
@@ -9,7 +9,13 @@ BATE-PAPO — WINDOWS x64
    e o código de acesso compartilhado com você.
 
 3. A outra pessoa abre o aplicativo com outro apelido, o MESMO servidor
-   e o MESMO código. Quando aparecer Conectado, vocês podem conversar.
+   e o MESMO código. Escolham o MESMO canal na lista da lateral.
+   Quando aparecer Conectado, vocês podem conversar.
+
+4. Para criar um canal, preencha novo-canal e clique em +. Use 2 a 24 letras,
+   números ou hífens. Para trocar, clique no canal desejado.
+   OUTRA JANELA abre uma segunda sessão para testar neste computador.
+   Todos que possuem o código podem acessar todos os canais.
 
 Enter envia. Shift+Enter quebra a linha.
 EFEITOS: ON/OFF pausa ou retoma o fundo pixelado. O movimento funciona
@@ -21,9 +27,10 @@ Quem conhece o código pode entrar. Apelidos não são identidades verificadas.
 O código não é salvo. HTTPS/WSS protege o transporte; o servidor processa
 as mensagens. Não há criptografia de ponta a ponta nesta versão.
 
-O histórico fica apenas nesta sessão, limitado a 500 itens. Ao sair da sala
-ou fechar o aplicativo, ele é apagado. Mensagens enviadas enquanto você
+O histórico fica apenas nesta sessão, limitado a 500 itens. Ao trocar de canal,
+sair da sala ou fechar o aplicativo, ele é apagado. Mensagens enviadas enquanto você
 estiver desconectado não serão recuperadas.
+Os canais criados somem se o servidor reiniciar; você retorna ao canal geral.
 
 O programa precisa de um servidor publicado para conversar pela internet.
 localhost serve apenas para testes no mesmo computador.

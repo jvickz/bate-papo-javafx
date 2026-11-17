@@ -2,13 +2,15 @@
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Duas pessoas conectam ao mesmo servidor, com o mesmo código de acesso e apelidos diferentes, para conversar em tempo real.
 
-O cliente Windows 1.1 usa tema de terminal retrô, fonte pixelada, verde-fósforo e fundo animado. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens usam fonte monoespaçada para manter a leitura. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+O cliente Windows 1.2 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens usam fonte monoespaçada para manter a leitura. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+
+![Canais e mar pixelado](docs/previews/ocean.png)
 
 ## Abrir o aplicativo
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `BatePapo-1.1.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `BatePapo-1.2.0.msi`: instalador para Windows x64, por usuário, com atalhos.
 - `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
 - `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
 
@@ -23,6 +25,14 @@ O servidor desta instalação está em **https://bate-papo-java.onrender.com**, 
 3. Escolham apelidos diferentes e entrem na conversa.
 
 O código não está neste repositório nem no instalador. A publicação foi criada diretamente no Render; não é necessário criar outro serviço pelo Blueprint abaixo. Publicações automáticas estão desativadas.
+
+## Criar canais e testar uma conversa
+
+Após entrar, use **novo-canal** e **+** na lateral para criar e entrar em um canal. Clique em um canal da lista para trocar. Nomes têm de 2 a 24 letras minúsculas, números ou hífens (por exemplo `amigos` ou `projeto-java`). Todos com o código compartilhado podem ver, criar e entrar nos canais; canais separam conversas, não são grupos com senhas próprias.
+
+**OUTRA JANELA** abre uma segunda sessão para teste no mesmo computador. Preencha o mesmo código, use outro apelido e escolha o mesmo canal nas duas janelas. Envie uma mensagem em cada sentido. Depois teste com a outra pessoa em outro computador usando os mesmos dados.
+
+Trocar de canal limpa o histórico da tela. Os canais são temporários e desaparecem se o servidor reiniciar; nesse caso o aplicativo retorna a `geral`. Clientes 1.0/1.1 continuam conversando em `geral`; use 1.2 para acessar os novos canais.
 
 ## Desenvolvimento no Windows
 
@@ -74,14 +84,14 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 
 ## Funcionamento e limites
 
-- Uma sala para até 64 conexões simultâneas, incluindo conexões ainda não autenticadas.
+- Até 20 canais (incluindo `geral`) e 64 conexões simultâneas no servidor, incluindo conexões ainda não autenticadas.
 - Apelidos de 2 a 24 caracteres; nomes iguais, sem distinção de maiúsculas, não entram simultaneamente.
 - Mensagens de até 2000 caracteres Unicode; 5 mensagens por segundo por cliente.
 - Quadros JSON de até 16 KiB, filas limitadas e autenticação em até 10 segundos.
 - Presença, heartbeat e reconexão com espera crescente de até 30 segundos.
 - Mensagens pendentes expiram após 15 segundos sem confirmação. Não são reenviadas automaticamente.
 - “Confirmada pelo servidor” não significa lida nem recebida por alguém que estava offline.
-- Histórico somente na memória do cliente, até 500 itens; sair ou fechar limpa a conversa.
+- Histórico somente na memória do cliente, até 500 itens; trocar de canal, sair ou fechar limpa a conversa.
 - Não há cadastro, transferência de arquivos, banco de dados ou criptografia de ponta a ponta. O servidor processa o texto. Apelidos não comprovam identidade.
 
 ## Organização
@@ -89,7 +99,7 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 | Caminho | Responsabilidade |
 | --- | --- |
 | `protocol` | Eventos JSON, validação e URLs seguras |
-| `server` | Autenticação, sala, presença, filas e distribuição |
+| `server` | Autenticação, canais, presença, filas e distribuição |
 | `client` | Conexão assíncrona, reconexão e interface JavaFX |
 | `scripts` | Ferramentas, execução e empacotamento Windows |
 | `docs/VALIDACAO.md` | Evidências e limites da validação realizada |

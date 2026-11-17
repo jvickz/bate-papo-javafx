@@ -17,7 +17,10 @@ public final class ChatConnection implements AutoCloseable {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
     private final AtomicLong generation = new AtomicLong();
     private final Map<String, ScheduledFuture<?>> pending = new LinkedHashMap<>();
-    private volatile boolean connected, closed;
+    private volatile boolean connected, closed, switching;
+    private volatile String channel = "geral";
+    private String changeRequest;
+    private ScheduledFuture<?> changeTimeout;
     private boolean wanted;
     private URI uri;
     private String name, token, resume;
@@ -41,7 +44,7 @@ public final class ChatConnection implements AutoCloseable {
             throw new IllegalArgumentException("Informe o código de acesso da sala.");
         long g = generation.incrementAndGet(); connected = false;
         execute(() -> {
-            stop(); uri = validated; name = validatedName; token = accessCode; resume = null; retries = 0; wanted = true;
+            stop(); uri = validated; name = validatedName; token = accessCode; resume = null; retries = 0; channel = "geral"; wanted = true;
             if (generation.get() == g) { states.accept("connecting"); begin(g); }
         });
     }
@@ -62,19 +65,45 @@ public final class ChatConnection implements AutoCloseable {
     }
     public String send(String text) {
         Protocol.validateText(text);
-        if (!connected || closed) throw new IllegalStateException("Aguarde a conexão antes de enviar.");
-        String id = UUID.randomUUID().toString(); long g = generation.get();
+        if (!connected || closed || switching) throw new IllegalStateException("Aguarde a conexão e a confirmação do canal antes de enviar.");
+        String id = UUID.randomUUID().toString(), targetChannel = channel; long g = generation.get();
         execute(() -> {
-            if (!connected || generation.get() != g || pending.size() >= 100) {
+            if (!connected || switching || !channel.equals(targetChannel) || generation.get() != g || pending.size() >= 100) {
                 events.accept(new Event("error", id, null, "Mensagem não enviada. Aguarde a conexão e tente novamente.", null, null, null, null)); return;
             }
-            events.accept(new Event("pending", id, name, text, null, null, null, null));
+            events.accept(new Event("pending", id, name, text, null, null, null, null, targetChannel));
             pending.put(id, loop.schedule(() -> {
                 if (pending.remove(id) != null) uncertain(id);
             }, 15, TimeUnit.SECONDS));
-            write(new Event("message", id, null, text, null, null, null, null), g, attempt);
+            write(new Event("message", id, null, text, null, null, null, null, targetChannel), g, attempt);
         });
         return id;
+    }
+    public void createChannel(String name) { changeChannel("create", name); }
+    public void joinChannel(String name) { changeChannel("join", name); }
+    private synchronized void changeChannel(String type, String name) {
+        String destination = Protocol.validateChannel(name);
+        if (!connected || closed || switching) throw new IllegalStateException("Aguarde a confirmação da conexão ou do canal.");
+        switching = true;
+        long g = generation.get();
+        execute(() -> {
+            if (!connected || generation.get() != g) { switching = false; return; }
+            clearPending();
+            changeRequest = UUID.randomUUID().toString();
+            String request = changeRequest; long a = attempt;
+            states.accept("switching");
+            changeTimeout = loop.schedule(() -> {
+                if (active(g, a) && request.equals(changeRequest)) {
+                    events.accept(new Event("error", request, null, "Troca de canal não confirmada. Reconectando para verificar o destino.", null, null, null, null));
+                    lost(g, a);
+                }
+            }, 10, TimeUnit.SECONDS);
+            write(new Event(type, request, null, null, null, null, null, null, destination), g, a);
+        });
+    }
+    private void clearChange() {
+        if (changeTimeout != null) changeTimeout.cancel(false);
+        changeTimeout = null; changeRequest = null; switching = false;
     }
     private void receive(Event event, long g, long a) {
         if (!active(g, a)) return;
@@ -82,22 +111,30 @@ public final class ChatConnection implements AutoCloseable {
         switch (event.type()) {
             case "welcome" -> {
                 if (connected) return;
-                resume = event.session(); connected = true; retries = 0;
+                channel = event.channel() == null ? "geral" : Protocol.validateChannel(event.channel());
+                clearChange(); resume = event.session(); connected = true; retries = 0;
                 events.accept(event); states.accept("connected");
             }
+            case "joined" -> {
+                if (!connected || changeRequest == null || !changeRequest.equals(event.id())) return;
+                channel = Protocol.validateChannel(event.channel()); clearChange();
+                events.accept(event); states.accept("connected");
+            }
+            case "channels" -> { if (connected) events.accept(event); }
             case "ping" -> write(Event.of("pong", null), g, a);
             case "message" -> {
                 if (!connected) return;
                 if (name.equals(event.name())) confirm(event.id());
-                events.accept(event);
+                if (event.channel() == null || channel.equals(event.channel())) events.accept(event);
             }
             case "error" -> {
+                if (changeRequest != null && changeRequest.equals(event.id())) { clearChange(); states.accept("connected"); }
                 confirm(event.id()); events.accept(event);
                 if (Set.of("auth", "name", "full", "rate").contains(Objects.toString(event.id(), ""))) {
                     generation.incrementAndGet(); stop(); states.accept("disconnected");
                 }
             }
-            case "presence", "system" -> { if (connected) events.accept(event); }
+            case "presence", "system" -> { if (connected && (event.channel() == null || channel.equals(event.channel()))) events.accept(event); }
             default -> { }
         }
     }
@@ -112,7 +149,7 @@ public final class ChatConnection implements AutoCloseable {
         if (!active(g, a)) return;
         attempt++; connected = false;
         if (socket != null) { socket.abort(); socket = null; }
-        clearPending(); states.accept("reconnecting");
+        clearPending(); clearChange(); states.accept("reconnecting");
         long delay = Math.min(30, 1L << Math.min(5, retries++));
         loop.schedule(() -> begin(g), delay, TimeUnit.SECONDS);
     }
@@ -123,7 +160,7 @@ public final class ChatConnection implements AutoCloseable {
     private void stop() {
         wanted = false; connected = false; attempt++;
         if (socket != null) { socket.abort(); socket = null; }
-        clearPending(); token = null; resume = null;
+        clearPending(); clearChange(); token = null; resume = null;
     }
     private void execute(Runnable work) { try { loop.execute(work); } catch (RejectedExecutionException ignored) { } }
     @Override public void close() {
@@ -138,7 +175,7 @@ public final class ChatConnection implements AutoCloseable {
             execute(() -> {
                 if (!active(g, a)) { ws.abort(); return; }
                 socket = ws; lastTraffic = System.nanoTime();
-                write(new Event("hello", null, name, null, token, resume, null, null), g, a);
+                write(new Event("hello", "channels-v1", name, null, token, resume, null, null, channel), g, a);
                 ws.request(1);
             });
         }

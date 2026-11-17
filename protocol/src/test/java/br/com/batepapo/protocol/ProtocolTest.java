@@ -9,6 +9,12 @@ class ProtocolTest {
         var event = new Event("message", "123", "João", "Olá 👋\nTudo bem?", null, null, List.of("Ana"), "2026-11-17T12:00:00Z");
         assertEquals(event, Protocol.decode(Protocol.encode(event)));
     }
+    @Test void channelIsOptionalOnTheWire() {
+        String frame = "{\"type\":\"presence\",\"users\":[\"Ana\"],\"channel\":\"tech\"}";
+        assertEquals(frame, Protocol.encode(Protocol.decode(frame)));
+        var legacy = new Event("presence", null, null, null, null, null, List.of("Ana"), null);
+        assertEquals("{\"type\":\"presence\",\"users\":[\"Ana\"]}", Protocol.encode(legacy));
+    }
     @Test void validatesNamesAndText() {
         assertEquals("João", Protocol.validateName(" João "));
         assertEquals("Olá\n👋", Protocol.validateText("Olá\n👋"));

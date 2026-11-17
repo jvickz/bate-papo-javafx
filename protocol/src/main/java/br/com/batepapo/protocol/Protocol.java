@@ -35,6 +35,12 @@ public final class Protocol {
             throw new IllegalArgumentException("Use um apelido de 2 a 24 caracteres, sem quebras de linha.");
         return clean;
     }
+    public static String validateChannel(String channel) {
+        String clean = channel == null ? "" : channel.strip().toLowerCase(Locale.ROOT);
+        if (!clean.matches("[a-z0-9][a-z0-9-]{1,23}"))
+            throw new IllegalArgumentException("Use um canal de 2 a 24 caracteres, com letras sem acento, números ou hífens, começando com letra ou número.");
+        return clean;
+    }
     public static String validateText(String text) {
         if (text == null || text.isBlank() || text.codePointCount(0, text.length()) > 2000 ||
                 text.codePoints().anyMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\r' && c != '\t'))

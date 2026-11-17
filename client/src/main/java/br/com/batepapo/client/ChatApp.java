@@ -29,6 +29,12 @@ public final class ChatApp extends Application {
     private final ObservableList<Line> history = FXCollections.observableArrayList();
     private final ListView<Line> messages = new ListView<>(history);
     private final ListView<String> participants = new ListView<>();
+    private final ListView<String> channels = new ListView<>();
+    private final TextField channelName = new TextField();
+    private final Button createChannel = new Button("+");
+    private final Label channelHeading = label("#geral", "title");
+    private String currentChannel = "geral";
+    private boolean updatingChannels;
     private final Label peopleCount = label("PARTICIPANTES", "eyebrow");
     private ChatConnection connection;
     private Stage stage;
@@ -45,7 +51,7 @@ public final class ChatApp extends Application {
         Font.loadFont(Objects.requireNonNull(getClass().getResource("/fonts/VT323-Regular.ttf")).toExternalForm(), 22);
         nickname.setId("nickname"); nickname.setPromptText("Como você quer ser chamado?");
         server.setId("server"); server.setPromptText("https://seu-servidor.onrender.com");
-        server.setText(System.getenv().getOrDefault("BATEPAPO_SERVER", ""));
+        server.setText(System.getenv().getOrDefault("BATEPAPO_SERVER", "https://bate-papo-java.onrender.com"));
         accessCode.setId("accessCode"); accessCode.setPromptText("Código compartilhado com você");
         join.setId("join"); join.getStyleClass().add("primary"); join.setMaxWidth(Double.MAX_VALUE);
         join.setOnAction(e -> enter()); accessCode.setOnAction(e -> enter());
@@ -70,7 +76,8 @@ public final class ChatApp extends Application {
             motion.setText(motion.isSelected() ? "EFEITOS: OFF" : "EFEITOS: ON");
             motion.setAccessibleText(motion.isSelected() ? "Retomar animação do fundo" : "Pausar animação do fundo");
         });
-        var heading = new VBox(4, label("SALA / 01", "title"), label("CANAL DE CONVERSA", "eyebrow"));
+        channelHeading.setId("channelHeading"); channelHeading.setMaxWidth(300); channelHeading.setMinWidth(0);
+        var heading = new VBox(4, channelHeading, label("UM MAR DE CONVERSAS", "eyebrow")); heading.setMinWidth(0);
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var header = new HBox(12, heading, spacer, motion, status); header.setAlignment(Pos.CENTER_LEFT); header.getStyleClass().add("header");
         content.setTop(header); showLogin();
@@ -81,13 +88,48 @@ public final class ChatApp extends Application {
         stage.setOnCloseRequest(e -> stop()); stage.show();
     }
     private VBox sidebar() {
-        var subtitle = label("CONEXÃO REMOTA\nPESSOAS REAIS_", "muted");
-        var tile = new VBox(6, label("> SALA / 01", "room-title"), label("ACESSO POR CONVITE", "muted")); tile.getStyleClass().add("room-tile");
+        var subtitle = label("OUTRAS MARGENS.\nA MESMA CONVERSA.", "muted");
+        channels.setId("channels"); channels.getStyleClass().add("channel-list"); channels.setFixedCellSize(28);
+        channels.setPrefHeight(116); channels.setMinHeight(68); channels.setDisable(true);
+        channels.setPlaceholder(label("Entre para ver canais", "muted"));
+        channels.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(String value, boolean empty) { super.updateItem(value, empty); setText(empty || value == null ? null : "# " + value); }
+        });
+        channels.getSelectionModel().selectedItemProperty().addListener((o, before, next) -> {
+            if (!updatingChannels && next != null && !next.equals(currentChannel) && online) {
+                try { connection.joinChannel(next); } catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); selectCurrentChannel(); }
+            }
+        });
+        channelName.setId("channelName"); channelName.setPromptText("novo-canal"); channelName.getStyleClass().add("channel-name");
+        channelName.setAccessibleText("Nome do novo canal"); channelName.setDisable(true);
+        createChannel.setId("createChannel"); createChannel.getStyleClass().add("create-channel"); createChannel.setDisable(true);
+        createChannel.setAccessibleText("Criar canal"); createChannel.setTooltip(new Tooltip("Criar canal e entrar. Use 2–24 letras, números ou hífens."));
+        createChannel.setOnAction(e -> createChannel()); channelName.setOnAction(e -> createChannel());
+        var createRow = new HBox(6, channelName, createChannel); createRow.getStyleClass().add("channel-create-row"); HBox.setHgrow(channelName, Priority.ALWAYS);
         var spacer = new Region(); VBox.setVgrow(spacer, Priority.ALWAYS);
-        participants.setPrefHeight(190);
-        var box = new VBox(20, label("bate-papo_", "brand"), subtitle, new Separator(), label("[ CANAIS ]", "eyebrow"), tile,
-                peopleCount, participants, spacer, label("FIM DA DISTÂNCIA.", "muted"), label("WINDOWS / v1.1", "muted"));
+        participants.setPrefHeight(112); participants.setMinHeight(55);
+        var another = new Button("OUTRA JANELA"); another.setId("openTestWindow"); another.getStyleClass().add("demo-button"); another.setMaxWidth(Double.MAX_VALUE);
+        another.setTooltip(new Tooltip("Abrir uma segunda sessão para testar uma conversa"));
+        another.setOnAction(e -> { var other = new ChatApp(); other.start(new Stage()); other.server.setText(server.getText()); other.nickname.setText("Teste 2"); });
+        var box = new VBox(12, label("bate-papo_", "brand"), subtitle, new Separator(), label("[ CANAIS ]", "eyebrow"), channels, createRow,
+                peopleCount, participants, spacer, another, label("WINDOWS / v1.2", "muted"));
         box.getStyleClass().add("sidebar"); box.setPrefWidth(224); return box;
+    }
+    private void createChannel() {
+        if (connection == null || !online) return;
+        try { connection.createChannel(channelName.getText()); hint.setText(""); }
+        catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
+    }
+    private void selectCurrentChannel() {
+        updatingChannels = true;
+        try { channels.getSelectionModel().select(currentChannel); } finally { updatingChannels = false; }
+    }
+    private void confirmChannel(String channel) {
+        String next = channel == null ? "geral" : channel;
+        if (!next.equals(currentChannel)) { history.clear(); composer.clear(); participants.getItems().clear(); }
+        currentChannel = next; channelHeading.setText("#" + next); channelHeading.setTooltip(new Tooltip("#" + next));
+        selectCurrentChannel();
+        if (inRoom) stage.setTitle("Bate-papo — " + myName + " · #" + currentChannel);
     }
     private void showLogin() {
         refreshMotion();
@@ -127,35 +169,45 @@ public final class ChatApp extends Application {
         content.setCenter(messages);
         var row = new HBox(12, composer, send); row.setAlignment(Pos.CENTER); HBox.setHgrow(composer, Priority.ALWAYS);
         var leave = new Button("Sair da sala"); leave.setOnAction(e -> leave());
-        var tip = label("Enter envia · Shift+Enter quebra a linha\nHistórico apenas nesta sessão · até 500 itens", "muted");
+        var tip = label("Enter envia · Shift+Enter quebra a linha\nAo trocar de canal, o histórico da tela é limpo", "muted");
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var footer = new HBox(10, tip, spacer, leave); footer.setAlignment(Pos.CENTER_LEFT);
         hint.setWrapText(true);
         var bottom = new VBox(8, row, hint, footer); bottom.getStyleClass().add("composer"); content.setBottom(bottom);
-        stage.setTitle("Bate-papo — " + myName); composer.requestFocus();
+        stage.setTitle("Bate-papo — " + myName + " · #" + currentChannel); composer.requestFocus();
     }
     private void leave() {
         ++epoch; if (connection != null) { connection.close(); connection = null; }
         inRoom = false; history.clear(); participants.getItems().clear(); composer.clear(); accessCode.clear(); error.setText("");
+        updatingChannels = true; channels.getItems().clear(); updatingChannels = false; confirmChannel("geral");
         cancel.setVisible(false); cancel.setManaged(false); onState("disconnected"); showLogin(); stage.setTitle("Bate-papo");
     }
     private void onState(String state) {
         online = state.equals("connected");
         refreshMotion();
-        status.setText(switch (state) { case "connected" -> "●  Conectado"; case "connecting" -> "Conectando…"; case "reconnecting" -> "Reconectando…"; default -> "Desconectado"; });
+        status.setText(switch (state) { case "connected" -> "●  Conectado"; case "connecting" -> "Conectando…"; case "reconnecting" -> "Reconectando…"; case "switching" -> "Trocando canal…"; default -> "Desconectado"; });
         status.getStyleClass().remove("online"); if (online) status.getStyleClass().add("online");
         send.setDisable(!online); composer.setDisable(!online);
-        if (!online) { participants.getItems().clear(); peopleCount.setText("PARTICIPANTES"); }
+        channels.setDisable(!online); channelName.setDisable(!online); createChannel.setDisable(!online);
+        if (!online && !state.equals("switching")) { participants.getItems().clear(); peopleCount.setText("PARTICIPANTES"); }
         if (state.equals("reconnecting")) {
             String notice = "Tentando reconectar. Mensagens enviadas durante sua ausência não serão recuperadas.";
             if (inRoom) hint.setText(notice); else error.setText("Tentando conectar. Confira o endereço ou aguarde o servidor iniciar.");
         }
-        if (online) { hint.setText(""); error.setText(""); }
+        if (online) { hint.setText(""); error.setText(""); selectCurrentChannel(); }
         if (state.equals("disconnected") && !inRoom) { cancel.setManaged(false); cancel.setVisible(false); showLogin(); }
     }
     private void onEvent(Event e) {
         switch (e.type()) {
-            case "welcome" -> { if (!inRoom) showChat(); }
+            case "welcome" -> {
+                boolean moved = e.channel() != null && !e.channel().equals(currentChannel);
+                confirmChannel(e.channel()); if (!inRoom) showChat();
+                if (moved && e.text() != null) append(new Line(null, null, e.text(), null, null));
+            }
+            case "joined" -> { confirmChannel(e.channel()); channelName.clear(); }
+            case "channels" -> {
+                if (e.users() != null) { updatingChannels = true; channels.getItems().setAll(e.users()); updatingChannels = false; selectCurrentChannel(); }
+            }
             case "presence" -> {
                 if (e.users() != null) { participants.getItems().setAll(e.users()); peopleCount.setText("PARTICIPANTES · " + e.users().size()); }
             }
