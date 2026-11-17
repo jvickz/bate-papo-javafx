@@ -35,8 +35,14 @@ Decisões: quando outra pessoa já ocupou um apelido cuja sessão foi removida, 
 
 Repositório privado criado: https://github.com/jvickz/bate-papo-javafx
 
-O serviço público ainda não foi criado. Falta confirmar o workspace do Render na pergunta enviada ao usuário. Até concluir a publicação e o teste WSS, os resultados acima comprovam funcionamento local, não disponibilidade pela internet.
+Serviço publicado em **https://bate-papo-java.onrender.com**, no workspace **My Workspace**, plano **free**, região Virginia, uma instância e publicação automática desativada.
 
-Depois de publicar, o teste opt-in `OnlineSmokeTest` usa `BATEPAPO_TEST_URL` e `CHAT_ACCESS_TOKEN` no ambiente e verifica troca nos dois sentidos e rejeição de código incorreto. Nenhum segredo precisa ser gravado no código ou no histórico de comandos.
+- Serviço: `srv-dbu51hrm8hqs73e50qgg`; deploy: `dep-dbu51i3m8hqs73e50r90`, estado **live** em 17/11/2026 às 13:05:14 UTC.
+- Commit publicado: `b29d964f9baa71d2dae4bb77b64a848d308dc788`. Alterações seguintes são apenas documentação.
+- HTTPS `/health` retornou `{"status":"ok"}`. O serviço criado via conector usa o health check TCP padrão do Render; o Blueprint alternativo configura `/health`.
+- `OnlineSmokeTest`: **1 teste passou**, sem falhas/erros/ignorados, contra o endereço público, às 10:06:36 (America/Sao_Paulo). Dois clientes trocaram mensagens Unicode nos dois sentidos via WSS; um terceiro com código incorreto foi recusado sem receber presença/mensagens.
+- O mesmo teste passou previamente contra o contêiner Docker Linux local.
+- O segredo foi configurado no ambiente do Render e injetado no processo de teste, sem inclusão no código, instalador ou logs. Copie `CHAT_ACCESS_TOKEN` em Environment no painel do serviço para usar os aplicativos.
+- Os hashes SHA-256 do MSI e ZIP foram recalculados e conferem com `SHA256SUMS.txt`.
 
-O teste final com dois computadores em redes físicas distintas depende de participação do usuário e da outra pessoa.
+O teste online usou dois clientes nesta máquina conectados ao servidor público. O teste com dois computadores em redes físicas distintas depende de participação do usuário e da outra pessoa.

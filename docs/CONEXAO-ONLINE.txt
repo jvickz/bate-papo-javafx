@@ -1,0 +1,20 @@
+BATE-PAPO — CONEXÃO PELA INTERNET
+
+Instale BatePapo-1.0.0.msi nos dois computadores Windows x64.
+Ou extraia BatePapo-Windows-x64.zip inteiro e abra BatePapo.exe.
+Java já está incluído.
+
+No aplicativo:
+  Endereço do servidor: https://bate-papo-java.onrender.com
+  Apelido: escolha um nome diferente em cada computador.
+  Código de acesso: use o mesmo código nos dois computadores.
+
+O proprietário encontra o código no painel do Render:
+https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg
+Abra Environment e copie o valor de CHAT_ACCESS_TOKEN.
+Compartilhe o código em particular com a outra pessoa.
+
+Quando ambos aparecerem conectados, enviem mensagens nos dois sentidos.
+Enter envia; Shift+Enter quebra a linha.
+O plano gratuito pode demorar para acordar após inatividade.
+O histórico não é salvo e não há entrega de mensagens offline.

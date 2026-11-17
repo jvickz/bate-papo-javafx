@@ -10,7 +10,17 @@ Os pacotes gerados ficam em `dist/<data-hora>/`:
 - `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
 - `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
 
-Java está incluído no pacote. O servidor roda separadamente. Para conversar entre redes diferentes é necessário publicar o servidor e preencher a URL HTTPS dele nos dois aplicativos. `localhost` funciona somente no mesmo computador.
+Java está incluído no pacote. O servidor roda separadamente. `localhost` funciona somente no mesmo computador.
+
+## Conectar ao servidor publicado
+
+O servidor desta instalação está em **https://bate-papo-java.onrender.com**, no plano gratuito do workspace My Workspace.
+
+1. Nos dois computadores, abra o aplicativo e preencha esse endereço.
+2. No [painel do serviço no Render](https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg), abra **Environment** e copie o valor de `CHAT_ACCESS_TOKEN` para o campo **Código de acesso**. Compartilhe esse código em particular com a outra pessoa.
+3. Escolham apelidos diferentes e entrem na conversa.
+
+O código não está neste repositório nem no instalador. A publicação foi criada diretamente no Render; não é necessário criar outro serviço pelo Blueprint abaixo. Publicações automáticas estão desativadas.
 
 ## Desenvolvimento no Windows
 
