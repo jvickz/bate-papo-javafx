@@ -13,12 +13,12 @@
 - Não persistir histórico/segredos; fallback geral após reinício; nenhum gasto novo.
 
 ## Tasks
-- [ ] Servidor/protocolo: testes RED/GREEN para criar/entrar/listar, isolamento de mensagem/presença, validação/limite, autenticação e legado. Implementar Event.channel, validateChannel e hub Room.
-- [ ] Cena e tema: barco pixelado reconhecível no mar, cores azul/petróleo/turquesa/âmbar; conservar métodos/ciclo de vida PixelBackdrop e classes CSS.
-- [ ] Cliente: changeChannel/createChannel com ack/timeout/cancelamento, catálogo e criação no sidebar, canal no cabeçalho, histórico separado por limpeza, testes reais de troca/isolamento e UI.
-- [ ] Revisão independente e suíte completa; corrigir achados; conferir capturas e pacote Windows 1.2.0.
-- [ ] Auditoria de arquivos/histórico, GitHub público, publicar servidor existente e teste WSS de canais.
-- [ ] Abrir duas sessões para teste, sincronizar workspace e entregar pacotes/instruções.
+- [x] Servidor/protocolo: testes RED/GREEN para criar/entrar/listar, isolamento de mensagem/presença, validação/limite, autenticação e legado. Implementar Event.channel, validateChannel e hub Room.
+- [x] Cena e tema: barco pixelado reconhecível no mar, cores azul/petróleo/turquesa/âmbar; conservar métodos/ciclo de vida PixelBackdrop e classes CSS.
+- [x] Cliente: changeChannel/createChannel com ack/timeout/cancelamento, catálogo e criação no sidebar, canal no cabeçalho, histórico separado por limpeza, testes reais de troca/isolamento e UI.
+- [x] Revisão independente e suíte completa; corrigir achados; conferir capturas e pacote Windows 1.2.0.
+- [x] Auditoria de arquivos/histórico, GitHub público, publicar servidor existente e teste WSS de canais.
+- [x] Abrir duas sessões para teste, sincronizar workspace e entregar pacotes/instruções.
 
 ## Review Focus
 - Corridas entre enviar/trocar/reconectar, confirmação perdida, mensagens do canal antigo.

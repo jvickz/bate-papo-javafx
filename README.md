@@ -103,6 +103,7 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 | `client` | Conexão assíncrona, reconexão e interface JavaFX |
 | `scripts` | Ferramentas, execução e empacotamento Windows |
 | `docs/VALIDACAO.md` | Evidências e limites da validação realizada |
+| `docs/OCEAN-VALIDACAO.md` | Testes e conversa online da versão 1.2.0 |
 
 JDK 21.0.13, JavaFX 21.0.13, Javalin 7.2.4, Jackson 2.23.0 e Maven 3.10.1. A imagem de build usa Maven 3.9.11 com JDK 21; o POM é compatível com ambos. O teste da interface roda somente no Windows; os demais testes também rodam no contêiner Linux.
 
