@@ -1,7 +1,7 @@
 param([switch]$SkipTests, [switch]$Installer)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$appVersion = '1.3.0'
+$appVersion = '1.4.0'
 $toolsDir = Join-Path $env:LOCALAPPDATA 'BatePapo\build-tools'
 & "$PSScriptRoot\bootstrap.ps1"
 $mavenArgs = @('-B', '-ntp', 'package')
@@ -20,6 +20,7 @@ $jpackage = Join-Path $toolsDir 'jdk-21.0.13+9\bin\jpackage.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar aplicativo Windows.' }
 Copy-Item -LiteralPath "$root\docs\COMO-USAR.txt" -Destination "$outputDir\BatePapo\COMO-USAR.txt"
 Copy-Item -LiteralPath "$root\docs\CONEXAO-ONLINE.txt" -Destination "$outputDir\BatePapo\CONEXAO-ONLINE.txt"
+Copy-Item -LiteralPath "$root\docs\CHAMADAS-DE-VOZ.txt" -Destination "$outputDir\BatePapo\CHAMADAS-DE-VOZ.txt"
 Copy-Item -LiteralPath "$root\client\src\main\resources\fonts\OFL.txt" -Destination "$outputDir\BatePapo\FONTE-LICENCA.txt"
 if ($Installer) {
     $oldPath = $env:PATH

@@ -28,7 +28,8 @@ public final class ChatConnection implements AutoCloseable {
     private URI uri;
     private String name, token, resume;
     private WebSocket socket;
-    private long attempt, lastTraffic;
+    private volatile long attempt;
+    private long lastTraffic;
     private int retries;
     private CompletableFuture<?> sends = CompletableFuture.completedFuture(null);
     public ChatConnection(Consumer<Event> events, Consumer<String> states) {
@@ -94,6 +95,32 @@ public final class ChatConnection implements AutoCloseable {
     }
     public void createChannel(String name) { changeChannel("create", name); }
     public void joinChannel(String name) { changeChannel("join", name); }
+    /** Private signaling is never queued for replay after a reconnect or rendered as chat text. */
+    public void voice(Event event) {
+        if (event == null || !Set.of("callinvite", "callaccept", "callreject", "callend", "callsignal", "callconnected").contains(event.type()))
+            throw new IllegalArgumentException("Comando de chamada inválido.");
+        try {
+            if (event.id() == null || !UUID.fromString(event.id()).toString().equals(event.id())) throw new IllegalArgumentException();
+        } catch (IllegalArgumentException ex) { throw new IllegalArgumentException("Identificador de chamada inválido."); }
+        String target = event.type().equals("callinvite") ? Protocol.validateName(event.name()) : null;
+        String signal = event.type().equals("callsignal") ? event.text() : null;
+        if (event.type().equals("callsignal") && (signal == null || signal.isBlank() || signal.length() > 12000))
+            throw new IllegalArgumentException("Sinal de chamada inválido.");
+        var clean = new Event(event.type(), event.id(), target, signal, null, null, null, null);
+        if (Protocol.encode(clean).getBytes(java.nio.charset.StandardCharsets.UTF_8).length > Protocol.MAX_BYTES)
+            throw new IllegalArgumentException("Sinal de chamada muito grande.");
+        boolean ending = event.type().equals("callend");
+        if (!connected || closed || (switching && !ending)) throw new IllegalStateException("Aguarde a conexão para ligar.");
+        long g = generation.get(), a = attempt;
+        execute(() -> {
+            if (generation.get() != g) return;
+            if (!active(g, a) || !connected || (switching && !ending)) {
+                events.accept(new Event("callerror", clean.id(), null, "A conexão mudou. Tente ligar novamente.", null, null, null, null));
+                return;
+            }
+            write(clean, g, a);
+        });
+    }
     private synchronized void changeChannel(String type, String name) {
         String destination = Protocol.validateChannel(name);
         if (!connected || closed || switching) throw new IllegalStateException("Aguarde a confirmação da conexão ou do canal.");
@@ -134,6 +161,9 @@ public final class ChatConnection implements AutoCloseable {
                 events.accept(event); states.accept("connected");
             }
             case "channels" -> { if (connected) events.accept(event); }
+            case "voice", "callringing", "callincoming", "callready", "callsignal", "callended", "callerror" -> {
+                if (connected) events.accept(event);
+            }
             case "ping" -> write(Event.of("pong", null), g, a);
             case "message" -> {
                 if (!connected) return;
@@ -209,7 +239,7 @@ public final class ChatConnection implements AutoCloseable {
             execute(() -> {
                 if (!active(g, a)) { ws.abort(); return; }
                 socket = ws; lastTraffic = System.nanoTime();
-                write(new Event("hello", "channels-v1", name, null, token, resume, null, null, channel), g, a);
+                write(new Event("hello", "channels-v1", name, "voice-v1", token, resume, null, null, channel), g, a);
                 ws.request(1);
             });
         }

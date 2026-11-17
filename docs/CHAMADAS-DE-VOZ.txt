@@ -1,0 +1,34 @@
+BATE-PAPO 1.4 — CHAMADA PRIVADA
+
+Os dois participantes precisam usar a versão 1.4, o mesmo servidor,
+o mesmo código de acesso e o mesmo canal. O servidor precisa ter
+o serviço de voz configurado pelo proprietário da sala.
+
+1. Na lista de participantes, selecione a outra pessoa e use Ligar.
+2. A outra pessoa verá quem está ligando e poderá aceitar ou recusar.
+3. O microfone só abre após o aceite. Aguarde o estado de chamada conectada.
+4. Silenciar interrompe o envio do seu microfone; você continua ouvindo.
+5. Encerrar termina a chamada. Sair, trocar de canal ou perder a conexão
+   também encerra o áudio. A reconexão do chat não religa automaticamente.
+
+Use fones para evitar retorno de áudio. São usados o microfone e a saída
+padrão do Windows. Se precisar trocar, selecione o dispositivo no Windows
+e inicie uma nova chamada. O aplicativo não grava as chamadas.
+
+Sem resposta em 30 segundos, a chamada expira. Se a conexão de áudio não
+for estabelecida, uma mensagem explica a falha. Uma pessoa só participa
+de uma chamada por vez. A chamada tem limite de 55 minutos nesta versão;
+após esse tempo é possível ligar novamente.
+
+Se aparecer voz indisponível, o proprietário precisa ativar o TURN.
+O chat de texto continua funcionando. Não adianta alterar o apelido
+ou o código da sala para resolver essa configuração.
+
+Para o proprietário: veja docs/VOICE-SETUP.md no código-fonte.
+As chaves do provedor ficam no servidor; nunca no instalador, no código
+público ou na conversa. O aplicativo usa credenciais temporárias de relay.
+
+Teste entre redes: uma pessoa em cada computador Windows, em conexões
+distintas, fala e escuta nos dois sentidos. Verifique também recusa,
+silenciar e encerrar. Um teste de duas janelas no mesmo computador não
+substitui essa verificação de microfone, áudio e conectividade externa.

@@ -1,14 +1,19 @@
 package br.com.batepapo.client;
 
 import br.com.batepapo.protocol.Event;
+import br.com.batepapo.protocol.VoiceConfig;
 import br.com.batepapo.server.ChatServer;
+import br.com.batepapo.server.VoiceTestServer;
 import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledOnOs(OS.WINDOWS)
@@ -32,6 +37,151 @@ class ChatAppTest {
         var folder = java.nio.file.Path.of(directory); java.nio.file.Files.createDirectories(folder);
         javax.imageio.ImageIO.write(raster, "png", folder.resolve(name + ".png").toFile());
     }
+    @Test void voiceRemainsUnavailableWhenServerHasNoTurnConfiguration() throws Exception {
+        String token = "voice-ui-unavailable-test-code-123456";
+        try (var host = new ChatServer(token, 0).start()) {
+            var app = new ChatApp();
+            Stage stage = fx(() -> {
+                var window = new Stage();
+                app.start(window);
+                window.setWidth(900);
+                window.setHeight(720);
+                ((TextField) window.getScene().lookup("#nickname")).setText("Teste Voz");
+                ((TextField) ((TitledPane) window.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
+                        .setText("ws://localhost:" + host.port());
+                ((PasswordField) window.getScene().lookup("#accessCode")).setText(token);
+                ((Button) window.getScene().lookup("#join")).fire();
+                return window;
+            });
+            try {
+                awaitFx(() -> stage.getScene().lookup("#composer") instanceof TextArea composer && !composer.isDisabled());
+                fx(() -> {
+                    assertInstanceOf(Button.class, stage.getScene().lookup("#voiceCall"));
+                    assertTrue(stage.getScene().lookup("#voiceCall").isDisabled());
+                    assertFalse(assertInstanceOf(Label.class, stage.getScene().lookup("#voiceStatus")).getText().isBlank());
+                    assertFalse(stage.getScene().lookup("#composer").isDisabled());
+                    snapshot(stage, "voice-unavailable-small");
+                    return null;
+                });
+            } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
+        }
+    }
+
+    @Test void voiceControlsRequireConsentAndCloseAudioOnChannelChange() throws Exception {
+        String token = "voice-controls-test-access-code-123456";
+        var callers = new ArrayList<UiVoiceEngine>();
+        var recipients = new ArrayList<UiVoiceEngine>();
+        try (var host = VoiceTestServer.start(token)) {
+            var alice = new ChatApp(() -> new UiVoiceEngine(callers));
+            var beto = new ChatApp(() -> new UiVoiceEngine(recipients));
+            Stage caller = loginForVoice(alice, host.port(), "Alice", token);
+            Stage recipient = loginForVoice(beto, host.port(), "Beto", token);
+            try {
+                awaitFx(() -> {
+                    var list = (ListView<?>) caller.getScene().lookup("#participants");
+                    return list.getItems().contains("Beto")
+                            && caller.getScene().lookup("#composer") instanceof TextArea field && !field.isDisabled();
+                });
+                fx(() -> {
+                    var list = (ListView<?>) caller.getScene().lookup("#participants");
+                    list.getSelectionModel().select(list.getItems().indexOf("Alice"));
+                    assertTrue(caller.getScene().lookup("#voiceCall").isDisabled(), "Você não pode ligar para si");
+                    list.getSelectionModel().select(list.getItems().indexOf("Beto"));
+                    return null;
+                });
+                awaitFx(() -> !caller.getScene().lookup("#voiceCall").isDisabled());
+                fx(() -> {
+                    ((Button) caller.getScene().lookup("#voiceCall")).fire();
+                    assertEquals("Cancelar", ((Button) caller.getScene().lookup("#voiceEnd")).getText());
+                    snapshot(caller, "voice-ringing-small");
+                    return null;
+                });
+                awaitFx(() -> recipient.getScene().lookup("#voiceAccept") != null
+                        && recipient.getScene().lookup("#voiceAccept").isVisible());
+                fx(() -> {
+                    assertTrue(callers.isEmpty());
+                    assertTrue(recipients.isEmpty());
+                    snapshot(recipient, "voice-incoming-small");
+                    ((Button) recipient.getScene().lookup("#voiceReject")).fire();
+                    return null;
+                });
+
+                awaitFx(() -> caller.getScene().lookup("#voiceCall").isVisible()
+                        && !caller.getScene().lookup("#voiceCall").isDisabled());
+                fx(() -> {
+                    var list = (ListView<?>) recipient.getScene().lookup("#participants");
+                    list.getSelectionModel().select(list.getItems().indexOf("Alice"));
+                    var returnCall = (Button) recipient.getScene().lookup("#voiceCall");
+                    assertFalse(returnCall.isDisabled());
+                    returnCall.fire();
+                    return null;
+                });
+                awaitFx(() -> caller.getScene().lookup("#voiceAccept").isVisible());
+                fx(() -> {
+                    assertTrue(callers.isEmpty());
+                    assertTrue(recipients.isEmpty());
+                    ((Button) caller.getScene().lookup("#voiceAccept")).fire();
+                    return null;
+                });
+                awaitFx(() -> caller.getScene().lookup("#voiceDuration").isVisible()
+                        && recipient.getScene().lookup("#voiceDuration").isVisible());
+                fx(() -> {
+                    assertEquals(1, callers.size());
+                    assertEquals(1, recipients.size());
+                    var mute = (ToggleButton) caller.getScene().lookup("#voiceMute");
+                    snapshot(caller, "voice-connected-small");
+                    mute.fire();
+                    assertTrue(mute.isSelected());
+                    assertTrue(callers.getFirst().muted);
+                    assertTrue(((Label) caller.getScene().lookup("#voiceDuration")).getText().matches("\\d{2}:\\d{2}"));
+                    snapshot(caller, "voice-muted-small");
+                    ((TextArea) caller.getScene().lookup("#composer")).setText("Texto durante a chamada");
+                    ((Button) caller.getScene().lookup("#send")).fire();
+                    return null;
+                });
+                awaitFx(() -> ((ListView<?>) recipient.getScene().lookup("#messages")).getItems().toString()
+                        .contains("Texto durante a chamada"));
+                fx(() -> {
+                    ((TextField) caller.getScene().lookup("#channelName")).setText("porto");
+                    ((Button) caller.getScene().lookup("#createChannel")).fire();
+                    assertTrue(callers.getFirst().closed, "Trocar de canal deve encerrar o áudio imediatamente");
+                    return null;
+                });
+                awaitFx(() -> recipients.getFirst().closed && !recipient.getScene().lookup("#voiceDuration").isVisible());
+            } finally {
+                fx(() -> { alice.stop(); beto.stop(); caller.close(); recipient.close(); return null; });
+            }
+        }
+    }
+
+    private static Stage loginForVoice(ChatApp app, int port, String name, String token) throws Exception {
+        return fx(() -> {
+            var window = new Stage();
+            app.start(window);
+            window.setWidth(900);
+            window.setHeight(720);
+            ((TextField) window.getScene().lookup("#nickname")).setText(name);
+            ((TextField) ((TitledPane) window.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
+                    .setText("ws://localhost:" + port);
+            ((PasswordField) window.getScene().lookup("#accessCode")).setText(token);
+            ((Button) window.getScene().lookup("#join")).fire();
+            return window;
+        });
+    }
+
+    private static final class UiVoiceEngine implements VoiceEngine {
+        private boolean muted;
+        private boolean closed;
+
+        UiVoiceEngine(List<UiVoiceEngine> instances) { instances.add(this); }
+
+        @Override public void start(VoiceConfig config, Consumer<String> signals,
+                                    Consumer<String> states) { states.accept("connected"); }
+        @Override public void signal(String payload) {}
+        @Override public void setMuted(boolean muted) { this.muted = muted; }
+        @Override public void close() { closed = true; }
+    }
+
     @Test void connectionNoticeIsReachableAtMinimumWindowSize() throws Exception {
         var app = new ChatApp();
         Stage stage = fx(() -> { var window = new Stage(); app.start(window); window.setWidth(900); window.setHeight(720); return window; });

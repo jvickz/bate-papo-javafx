@@ -2,7 +2,7 @@
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Duas pessoas conectam ao mesmo servidor, com o mesmo código de acesso e apelidos diferentes, para conversar em tempo real.
 
-O cliente Windows 1.3 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+O cliente Windows 1.4 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
 
 ![Conversa e mar pixelado — versão 1.3](docs/previews/conversation-1.3.png)
 
@@ -10,7 +10,7 @@ O cliente Windows 1.3 combina um veleiro pixelado em mar noturno, ondas turquesa
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `BatePapo-1.3.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `BatePapo-1.4.0.msi`: instalador para Windows x64, por usuário, com atalhos.
 - `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
 - `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
 
@@ -33,6 +33,14 @@ Após entrar, use **novo-canal** e **+** na lateral para criar e entrar em um ca
 **OUTRA JANELA** abre uma segunda sessão para teste no mesmo computador. Preencha o mesmo código, use outro apelido e escolha o mesmo canal nas duas janelas. Envie uma mensagem em cada sentido. Depois teste com a outra pessoa em outro computador usando os mesmos dados.
 
 Trocar de canal preserva rascunhos e histórico separado durante a sessão. **Convidar pessoa** copia o servidor e o canal; envie o código separadamente. **Verificar servidor** consulta a saúde HTTP, sem validar o código nem substituir a conexão WSS. Você pode copiar mensagens pelo menu de contexto e recuperar o texto de envios recusados. Os canais são temporários e desaparecem se o servidor reiniciar; nesse caso o aplicativo retorna a `geral`. Clientes 1.0/1.1 continuam conversando em `geral`; use 1.2 para acessar os novos canais.
+
+## Chamadas privadas de voz
+
+A versão 1.4 permite selecionar alguém no mesmo canal e ligar. A pessoa aceita ou recusa; o microfone só abre após o aceite. Há controles de silenciar e encerrar, indicação de conexão e duração. Sair, trocar de canal ou perder a conexão encerra a chamada; o chat não religa sozinho. Use fones e os dispositivos padrão de áudio do Windows.
+
+O servidor precisa do TURN configurado. Sem isso, o aplicativo informa voz indisponível e mantém o texto funcionando. Veja [ativação e diagnóstico](docs/VOICE-SETUP.md) e [instruções de uso](docs/CHAMADAS-DE-VOZ.txt). Chamadas de até 55 minutos, uma por pessoa, sem gravação. Instale 1.4 nos dois computadores; versões anteriores continuam compatíveis para texto.
+
+O WebRTC nativo é fornecido por [webrtc-java 1.0.1](https://github.com/devopvoid/webrtc-java). Os JARs distribuídos mantêm `META-INF/LICENSE`, `META-INF/NOTICE` e as licenças dos componentes nativos em `META-INF/licenses/`.
 
 ## Desenvolvimento no Windows
 

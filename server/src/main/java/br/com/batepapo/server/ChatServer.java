@@ -9,10 +9,14 @@ public final class ChatServer implements AutoCloseable {
     private final Javalin app;
     private final Room room;
     private final int port;
+    private final TurnCredentialsProvider turn;
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("room-heartbeat").factory());
-    public ChatServer(String token, int port) {
+    public ChatServer(String token, int port) { this(token, port, null); }
+
+    ChatServer(String token, int port, TurnCredentialsProvider turn) {
         this.port = port;
-        room = new Room(token);
+        this.turn = turn;
+        room = new Room(token, turn, System::nanoTime);
         app = Javalin.create(config -> {
             config.startup.showJavalinBanner = false;
             config.startup.showOldJavalinVersionWarning = false;
@@ -38,5 +42,10 @@ public final class ChatServer implements AutoCloseable {
         return this;
     }
     public int port() { return app.port(); }
-    @Override public void close() { timer.shutdownNow(); room.shutdown(); app.stop(); }
+    @Override public void close() {
+        timer.shutdownNow();
+        room.shutdown();
+        if (turn != null) turn.close();
+        app.stop();
+    }
 }

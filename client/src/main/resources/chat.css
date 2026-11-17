@@ -221,3 +221,22 @@
 .titled-pane > .title { -fx-background-color: #142a3b; -fx-border-color: #365366; -fx-padding: 9 10; -fx-font-size: 12px; -fx-font-family: "Segoe UI"; }
 .titled-pane > .title > .arrow-button > .arrow { -fx-background-color: #8ee3d5; }
 .titled-pane > .content { -fx-background-color: #0b1827; -fx-border-color: #365366; -fx-padding: 12; }
+
+
+.voice-panel {
+    -fx-padding: 7 9;
+    -fx-background-color: #102b3c;
+    -fx-border-color: #365e70 #365e70 #365e70 #7accc5;
+    -fx-border-width: 1 1 1 3;
+}
+.voice-status { -fx-font-size: 12px; -fx-text-fill: #d2e9eb; }
+.voice-duration { -fx-font-family: "Consolas"; -fx-font-size: 13px; -fx-text-fill: #a8f2e6; }
+.button.voice-action, .toggle-button.voice-action {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 12px;
+    -fx-padding: 5 10;
+}
+.button.voice-action:focused, .toggle-button.voice-action:focused { -fx-padding: 4 9; }
+.button.voice-accept { -fx-background-color: #8ee3d5; -fx-border-color: #b5f6ea; -fx-text-fill: #0a2430; }
+.button.voice-accept:hover { -fx-background-color: #bbf5ea; }
+.toggle-button.voice-action:selected { -fx-background-color: #295769; -fx-text-fill: #e0fffa; }

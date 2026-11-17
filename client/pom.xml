@@ -3,6 +3,7 @@
   <artifactId>client</artifactId>
   <dependencies>
     <dependency><groupId>br.com.batepapo</groupId><artifactId>protocol</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>dev.onvoid.webrtc</groupId><artifactId>webrtc-java</artifactId><version>1.0.1</version></dependency>
     <dependency><groupId>org.openjfx</groupId><artifactId>javafx-controls</artifactId><version>${javafx.version}</version></dependency>
     <dependency><groupId>br.com.batepapo</groupId><artifactId>server</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   </dependencies>

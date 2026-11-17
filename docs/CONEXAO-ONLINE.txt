@@ -1,6 +1,6 @@
-BATE-PAPO 1.3 — CONEXÃO PELA INTERNET
+BATE-PAPO 1.4 — CONEXÃO PELA INTERNET
 
-Instale BatePapo-1.3.0.msi nos dois computadores Windows x64.
+Instale BatePapo-1.4.0.msi nos dois computadores Windows x64.
 Ou extraia BatePapo-Windows-x64.zip inteiro e abra BatePapo.exe.
 Java já está incluído.
 
@@ -58,3 +58,5 @@ Conversa e recuperação de texto:
   Se já existir um rascunho, o texto recuperado é copiado sem apagá-lo.
   Não há reenvio automático. Uma Entrega não confirmada pode ter chegado;
   revise antes de reenviar. Confirmada pelo servidor não significa lida.
+
+Chamadas privadas: veja CHAMADAS-DE-VOZ.txt nesta pasta.

@@ -15,6 +15,7 @@ import javafx.stage.Stage;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Supplier;
 
 public final class ChatApp extends Application {
     private final BorderPane content = new BorderPane();
@@ -59,6 +60,27 @@ public final class ChatApp extends Application {
     private int unread;
     private long checkEpoch;
     private boolean stopped;
+    private final VoicePanel voicePanel = new VoicePanel();
+    private final VoiceController voice;
+
+    public ChatApp() {
+        this(new Supplier<>() {
+            private VoiceEngine engine;
+            @Override public VoiceEngine get() {
+                if (engine == null) engine = new NativeVoiceEngine();
+                return engine;
+            }
+        });
+    }
+
+    ChatApp(Supplier<VoiceEngine> engines) {
+        voice = new VoiceController(event -> {
+            if (connection == null) throw new IllegalStateException();
+            connection.voice(event);
+        }, engines, Platform::runLater, voicePanel::render);
+        voicePanel.bind(voice);
+    }
+
     record Line(String id, String name, String text, String time, String delivery) {}
 
     @Override public void start(Stage stage) {
@@ -91,7 +113,11 @@ public final class ChatApp extends Application {
         messages.skinProperty().addListener((o, old, skin) -> Platform.runLater(this::watchScroll));
         newMessages.setId("newMessages"); newMessages.getStyleClass().add("new-messages");
         newMessages.setVisible(false); newMessages.setManaged(false); newMessages.setOnAction(e -> jumpToLatest());
+        participants.setId("participants");
+        participants.setAccessibleText("Participantes do canal");
         participants.setPlaceholder(label("Ninguém conectado", "muted"));
+        participants.getSelectionModel().selectedItemProperty().addListener((o, before, next) ->
+                voice.participant(myName, next));
 
         var shell = new BorderPane(); shell.setLeft(sidebar()); shell.setCenter(content);
         shell.getStyleClass().add("terminal-shell");
@@ -125,7 +151,13 @@ public final class ChatApp extends Application {
         });
         channels.getSelectionModel().selectedItemProperty().addListener((o, before, next) -> {
             if (!updatingChannels && next != null && !next.equals(currentChannel) && online) {
-                try { connection.joinChannel(next); } catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); selectCurrentChannel(); }
+                try {
+                    connection.joinChannel(next);
+                    voice.connection(false, true);
+                } catch (IllegalArgumentException | IllegalStateException ex) {
+                    hint.setText(ex.getMessage());
+                    selectCurrentChannel();
+                }
             }
         });
         channelName.setId("channelName"); channelName.setPromptText("novo-canal"); channelName.getStyleClass().add("channel-name");
@@ -140,12 +172,16 @@ public final class ChatApp extends Application {
         another.setTooltip(new Tooltip("Abrir uma segunda sessão para testar uma conversa"));
         another.setOnAction(e -> { var other = new ChatApp(); other.start(new Stage()); other.server.setText(server.getText()); });
         var box = new VBox(12, label("bate-papo_", "brand"), subtitle, new Separator(), label("[ CANAIS ]", "eyebrow"), channels, createRow,
-                peopleCount, participants, spacer, copyInvite, another, label("WINDOWS / v1.3", "muted"));
+                peopleCount, participants, spacer, copyInvite, another, label("WINDOWS / v1.4", "muted"));
         box.getStyleClass().add("sidebar"); box.setPrefWidth(224); return box;
     }
     private void createChannel() {
         if (connection == null || !online) return;
-        try { connection.createChannel(channelName.getText()); hint.setText(""); }
+        try {
+            connection.createChannel(channelName.getText());
+            voice.connection(false, true);
+            hint.setText("");
+        }
         catch (IllegalArgumentException | IllegalStateException ex) { hint.setText(ex.getMessage()); }
     }
     private void selectCurrentChannel() {
@@ -220,10 +256,11 @@ public final class ChatApp extends Application {
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var footer = new HBox(10, tip, spacer, counter, leave); footer.setAlignment(Pos.CENTER_LEFT);
         hint.setWrapText(true);
-        var bottom = new VBox(8, row, hint, footer); bottom.getStyleClass().add("composer"); content.setBottom(bottom);
+        var bottom = new VBox(8, voicePanel, row, hint, footer); bottom.getStyleClass().add("composer"); content.setBottom(bottom);
         stage.setTitle("Bate-papo — " + myName + " · #" + currentChannel); composer.requestFocus();
     }
     private void leave() {
+        voice.connection(false, false);
         ++epoch; if (connection != null) { connection.close(); connection = null; }
         inRoom = false; history.clear(); participants.getItems().clear(); composer.clear(); accessCode.clear(); error.setText("");
         updatingChannels = true; channels.getItems().clear(); updatingChannels = false; confirmChannel("geral");
@@ -232,6 +269,7 @@ public final class ChatApp extends Application {
     }
     private void onState(String state) {
         online = state.equals("connected");
+        voice.connection(online, state.equals("switching"));
         refreshMotion();
         status.setText(switch (state) { case "connected" -> "●  Conectado"; case "connecting" -> "Conectando…"; case "reconnecting" -> "Reconectando…"; case "switching" -> "Trocando canal…"; default -> "Desconectado"; });
         status.getStyleClass().remove("online"); if (online) status.getStyleClass().add("online");
@@ -258,9 +296,16 @@ public final class ChatApp extends Application {
             }
             case "presence" -> {
                 if (e.users() != null) {
-                    participants.getItems().setAll(e.users()); peopleCount.setText("PARTICIPANTES · " + e.users().size());
+                    String selected = participants.getSelectionModel().getSelectedItem();
+                    participants.getItems().setAll(e.users());
+                    if (selected != null && e.users().contains(selected)) participants.getSelectionModel().select(selected);
+                    voice.participant(myName, participants.getSelectionModel().getSelectedItem());
+                    peopleCount.setText("PARTICIPANTES · " + e.users().size());
                     conversationInfo.setText(e.users().size() == 1 ? "Só você por aqui · convide alguém" : e.users().size() + " pessoas neste canal · conexão ativa");
                 }
+            }
+            case "voice", "callincoming", "callringing", "callready", "callsignal", "callended", "callerror" -> {
+                if (inRoom && ("voice".equals(e.type()) || e.channel() == null || currentChannel.equals(e.channel()))) voice.receive(e);
             }
             case "connection" -> { if (inRoom) hint.setText(e.text()); else error.setText(e.text()); }
             case "system" -> append(new Line(null, null, e.text(), null, null));
@@ -288,6 +333,7 @@ public final class ChatApp extends Application {
                 }
                 if (inRoom) hint.setText(e.text()); else error.setText(e.text());
                 if (Set.of("auth", "name", "full", "rate").contains(Objects.toString(e.id(), ""))) {
+                    voice.connection(false, false);
                     inRoom = false; error.setText(e.text());
                     if (!"name".equals(e.id())) accessCode.clear();
                     else error.setText(e.text() + " Clique em Gerar outro e tente novamente; o código foi mantido.");
@@ -317,7 +363,16 @@ public final class ChatApp extends Application {
         var label = label(title, "field-label"); label.setLabelFor(field); return new VBox(0, label, field);
     }
     private void refreshMotion() { backdrop.setActive(inRoom && online && stage != null && stage.isShowing() && !stage.isIconified()); }
-    @Override public void stop() { stopped = true; ++epoch; ++checkEpoch; serverCheck.close(); backdrop.close(); if (connection != null) connection.close(); channelHistory.clear(); drafts.clear(); history.clear(); accessCode.clear(); }
+    @Override public void stop() {
+        stopped = true;
+        ++epoch;
+        ++checkEpoch;
+        voice.connection(false, false);
+        serverCheck.close();
+        backdrop.close();
+        if (connection != null) connection.close();
+        channelHistory.clear(); drafts.clear(); history.clear(); accessCode.clear();
+    }
     private final class MessageCell extends ListCell<Line> {
         @Override protected void updateItem(Line line, boolean empty) {
             super.updateItem(line, empty); setText(null); setGraphic(null);
