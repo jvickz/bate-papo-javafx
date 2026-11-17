@@ -2,15 +2,15 @@
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Duas pessoas conectam ao mesmo servidor, com o mesmo código de acesso e apelidos diferentes, para conversar em tempo real.
 
-O cliente Windows 1.2 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens usam fonte monoespaçada para manter a leitura. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
+O cliente Windows 1.3 combina um veleiro pixelado em mar noturno, ondas turquesa e luz âmbar com canais de conversa independentes. **EFEITOS: ON/OFF** pausa ou retoma a animação; minimizar, desconectar e sair também interrompem o movimento. As mensagens e instruções usam fonte legível, com títulos e botões em estilo retrô. A fonte [VT323](https://github.com/google/fonts/tree/main/ofl/vt323) está incluída sob SIL Open Font License; veja `FONTE-LICENCA.txt` no pacote.
 
-![Canais e mar pixelado](docs/previews/ocean.png)
+![Conversa e mar pixelado — versão 1.3](docs/previews/conversation-1.3.png)
 
 ## Abrir o aplicativo
 
 Os pacotes gerados ficam em `dist/<data-hora>/`:
 
-- `BatePapo-1.2.0.msi`: instalador para Windows x64, por usuário, com atalhos.
+- `BatePapo-1.3.0.msi`: instalador para Windows x64, por usuário, com atalhos.
 - `BatePapo-Windows-x64.zip`: versão portátil. Extraia **toda** a pasta e abra `BatePapo.exe`.
 - `BatePapo/BatePapo.exe`: aplicativo já extraído nesta máquina.
 
@@ -20,9 +20,9 @@ Java está incluído no pacote. O servidor roda separadamente. `localhost` funci
 
 O servidor desta instalação está em **https://bate-papo-java.onrender.com**, no plano gratuito do workspace My Workspace.
 
-1. Nos dois computadores, abra o aplicativo e preencha esse endereço.
+1. Nos dois computadores, abra o aplicativo. O servidor já está preenchido; para verificar ou alterar, expanda **Servidor e diagnóstico de conexão**.
 2. No [painel do serviço no Render](https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg), abra **Environment** e copie o valor de `CHAT_ACCESS_TOKEN` para o campo **Código de acesso**. Compartilhe esse código em particular com a outra pessoa.
-3. Escolham apelidos diferentes e entrem na conversa.
+3. O aplicativo sugere um apelido válido. Se o nome estiver ocupado, clique em **Gerar outro** e tente de novo; o código será mantido nessa falha.
 
 O código não está neste repositório nem no instalador. A publicação foi criada diretamente no Render; não é necessário criar outro serviço pelo Blueprint abaixo. Publicações automáticas estão desativadas.
 
@@ -32,7 +32,7 @@ Após entrar, use **novo-canal** e **+** na lateral para criar e entrar em um ca
 
 **OUTRA JANELA** abre uma segunda sessão para teste no mesmo computador. Preencha o mesmo código, use outro apelido e escolha o mesmo canal nas duas janelas. Envie uma mensagem em cada sentido. Depois teste com a outra pessoa em outro computador usando os mesmos dados.
 
-Trocar de canal limpa o histórico da tela. Os canais são temporários e desaparecem se o servidor reiniciar; nesse caso o aplicativo retorna a `geral`. Clientes 1.0/1.1 continuam conversando em `geral`; use 1.2 para acessar os novos canais.
+Trocar de canal preserva rascunhos e histórico separado durante a sessão. **Convidar pessoa** copia o servidor e o canal; envie o código separadamente. **Verificar servidor** consulta a saúde HTTP, sem validar o código nem substituir a conexão WSS. Você pode copiar mensagens pelo menu de contexto e recuperar o texto de envios recusados. Os canais são temporários e desaparecem se o servidor reiniciar; nesse caso o aplicativo retorna a `geral`. Clientes 1.0/1.1 continuam conversando em `geral`; use 1.2 para acessar os novos canais.
 
 ## Desenvolvimento no Windows
 
@@ -91,7 +91,7 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 - Presença, heartbeat e reconexão com espera crescente de até 30 segundos.
 - Mensagens pendentes expiram após 15 segundos sem confirmação. Não são reenviadas automaticamente.
 - “Confirmada pelo servidor” não significa lida nem recebida por alguém que estava offline.
-- Histórico somente na memória do cliente, até 500 itens; trocar de canal, sair ou fechar limpa a conversa.
+- Histórico somente na memória do cliente, até 500 itens por canal e 20 canais; sair ou fechar limpa a conversa.
 - Não há cadastro, transferência de arquivos, banco de dados ou criptografia de ponta a ponta. O servidor processa o texto. Apelidos não comprovam identidade.
 
 ## Organização
@@ -103,7 +103,7 @@ Para outro provedor, execute a imagem Docker atrás de um proxy HTTPS que aceite
 | `client` | Conexão assíncrona, reconexão e interface JavaFX |
 | `scripts` | Ferramentas, execução e empacotamento Windows |
 | `docs/VALIDACAO.md` | Evidências e limites da validação realizada |
-| `docs/OCEAN-VALIDACAO.md` | Testes e conversa online da versão 1.2.0 |
+| `docs/OCEAN-VALIDACAO.md` | Testes e conversa online da versão 1.3.0 |
 
 JDK 21.0.13, JavaFX 21.0.13, Javalin 7.2.4, Jackson 2.23.0 e Maven 3.10.1. A imagem de build usa Maven 3.9.11 com JDK 21; o POM é compatível com ambos. O teste da interface roda somente no Windows; os demais testes também rodam no contêiner Linux.
 
@@ -116,3 +116,5 @@ JDK 21.0.13, JavaFX 21.0.13, Javalin 7.2.4, Jackson 2.23.0 e Maven 3.10.1. A ima
 - **Entrega não confirmada:** a mensagem pode ter chegado; decida antes de reenviá-la manualmente.
 
 Referências: [JavaFX](https://openjfx.io/), [WebSocket Java](https://docs.oracle.com/en/java/javase/21/docs/api/java.net.http/java/net/http/WebSocket.html), [Javalin](https://javalin.io/documentation), [jpackage](https://docs.oracle.com/en/java/javase/21/jpackage/packaging-overview.html), [Render WebSocket](https://render.com/docs/websocket).
+
+Análise das melhorias e limites: [ANALISE-1.3.md](docs/ANALISE-1.3.md).

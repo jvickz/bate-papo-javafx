@@ -1,22 +1,60 @@
-BATE-PAPO — CONEXÃO PELA INTERNET
+BATE-PAPO 1.3 — CONEXÃO PELA INTERNET
 
-Instale BatePapo-1.2.0.msi nos dois computadores Windows x64.
+Instale BatePapo-1.3.0.msi nos dois computadores Windows x64.
 Ou extraia BatePapo-Windows-x64.zip inteiro e abra BatePapo.exe.
 Java já está incluído.
 
-No aplicativo:
-  Endereço do servidor: https://bate-papo-java.onrender.com
-  Apelido: escolha um nome diferente em cada computador.
-  Código de acesso: use o mesmo código nos dois computadores.
+Para convidar alguém em outro local:
 
-O proprietário encontra o código no painel do Render:
+1. Entre no aplicativo e escolha o canal em que vocês vão conversar.
+   Convidar pessoa copia um convite com o endereço do servidor e esse canal.
+   Envie o convite e o MSI ou ZIP à outra pessoa. Compartilhe o código
+   em particular, separadamente: o convite copiado não inclui o código.
+
+2. No outro computador, instale o MSI ou extraia todo o ZIP e abra o programa.
+   O apelido já vem preenchido. É possível editá-lo ou clicar em Gerar outro.
+   Se estiver em uso, Gerar outro permite tentar novamente mantendo o código.
+   Cole o mesmo código de acesso e clique em Entrar na conversa.
+
+3. O endereço padrão é https://bate-papo-java.onrender.com.
+   Se o convite indicar outro endereço, expanda
+   Servidor e diagnóstico de conexão na tela de entrada e substitua-o.
+   Os dois computadores precisam usar o MESMO servidor, o MESMO código
+   e apelidos diferentes. Não use localhost para conversar entre locais.
+
+4. Depois de entrar, selecione o MESMO canal indicado no convite.
+   Para criar um canal, use novo-canal e + na lateral.
+   Todos que possuem o código podem acessar todos os canais.
+   Confiram os dois apelidos na lista de participantes e enviem uma mensagem
+   em cada sentido, um de cada computador e de cada rede.
+
+Onde o proprietário encontra o código:
 https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg
 Abra Environment e copie o valor de CHAT_ACCESS_TOKEN.
 Compartilhe o código em particular com a outra pessoa.
+Quem recebeu o convite deve pedir esse código ao proprietário da sala.
 
-Escolham o mesmo canal. Para criar: novo-canal e + na lateral.
-Quando ambos aparecerem conectados, enviem mensagens nos dois sentidos.
+Se não conseguir entrar:
+  Expanda Servidor e diagnóstico de conexão e use Verificar servidor.
+  A verificação consulta /health por HTTP/HTTPS. Ela não testa o código
+  de acesso nem a conexão WebSocket da conversa.
+  Se o serviço gratuito estiver iniciando, aguarde um minuto e tente de novo.
+  Com código incorreto, copie novamente o código recebido do proprietário.
+  Com apelido em uso, clique em Gerar outro; o código digitado é mantido.
+
 OUTRA JANELA permite testar com duas sessões neste computador.
+Esse teste não substitui a conversa entre os dois computadores em redes distintas.
 Enter envia; Shift+Enter quebra a linha.
-O plano gratuito pode demorar para acordar após inatividade.
-O histórico não é salvo e não há entrega de mensagens offline.
+
+Conversa e recuperação de texto:
+  O histórico e o rascunho de cada canal ficam separados durante a sessão,
+  somente na memória: até 500 itens por canal, em no máximo 20 canais.
+  Trocar de canal preserva esses dados. Sair da sala ou fechar apaga tudo.
+  Mensagens enviadas durante sua ausência não serão recuperadas.
+  Se o servidor reiniciar, os canais criados desaparecem e você volta a geral.
+
+  Clique com o botão direito para Copiar mensagem ou, nas suas mensagens,
+  Editar novamente. Nas mensagens com falha, use também Recuperar texto.
+  Se já existir um rascunho, o texto recuperado é copiado sem apagá-lo.
+  Não há reenvio automático. Uma Entrega não confirmada pode ter chegado;
+  revise antes de reenviar. Confirmada pelo servidor não significa lida.

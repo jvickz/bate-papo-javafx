@@ -1,7 +1,7 @@
 param([switch]$SkipTests, [switch]$Installer)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$appVersion = '1.2.0'
+$appVersion = '1.3.0'
 $toolsDir = Join-Path $env:LOCALAPPDATA 'BatePapo\build-tools'
 & "$PSScriptRoot\bootstrap.ps1"
 $mavenArgs = @('-B', '-ntp', 'package')

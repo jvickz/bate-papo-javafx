@@ -1,39 +1,68 @@
-BATE-PAPO — WINDOWS x64
+BATE-PAPO 1.3 — WINDOWS x64
 
-1. Se recebeu BatePapo-1.2.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
+1. Se recebeu BatePapo-1.3.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
    Se recebeu um ZIP, extraia tudo antes de abrir BatePapo.exe.
    Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
    Não precisa instalar Java separadamente.
 
-2. Abra o Bate-papo. Digite seu apelido, o endereço HTTPS do servidor
-   e o código de acesso compartilhado com você.
+2. Abra o Bate-papo. Um apelido já vem preenchido; você pode editá-lo
+   ou clicar em Gerar outro. Cole o código de acesso recebido e entre.
+   Se o apelido estiver em uso, clique em Gerar outro e tente novamente.
+   O código digitado é mantido nessa tentativa.
+
+   O servidor padrão é https://bate-papo-java.onrender.com.
+   Para conferir ou alterar o endereço, expanda
+   Servidor e diagnóstico de conexão na tela de entrada.
 
 3. A outra pessoa abre o aplicativo com outro apelido, o MESMO servidor
    e o MESMO código. Escolham o MESMO canal na lista da lateral.
-   Quando aparecer Conectado, vocês podem conversar.
+   Confiram a lista de participantes e enviem uma mensagem em cada sentido.
+   Isso também funciona em computadores em locais e redes diferentes.
 
 4. Para criar um canal, preencha novo-canal e clique em +. Use 2 a 24 letras,
    números ou hífens. Para trocar, clique no canal desejado.
    OUTRA JANELA abre uma segunda sessão para testar neste computador.
    Todos que possuem o código podem acessar todos os canais.
 
+5. Convidar pessoa copia um convite com o servidor e o canal atual.
+   Cole esse convite na mensagem que enviará à outra pessoa.
+   O convite não contém o código: compartilhe o código em particular,
+   separadamente. A pessoa precisa instalar ou extrair o aplicativo,
+   entrar com esse código e selecionar o canal informado.
+
+6. Verificar servidor consulta o endereço /health por HTTP/HTTPS.
+   Esse teste não verifica o código de acesso nem a conexão WebSocket
+   usada na conversa. Se o servidor gratuito estiver iniciando, aguarde
+   um minuto e tente novamente; depois use Entrar na conversa.
+
 Enter envia. Shift+Enter quebra a linha.
+O contador mostra o limite de 2000 caracteres por mensagem.
+Enquanto você lê mensagens antigas, as novas não puxam a tela para baixo.
+Use o botão de novas mensagens para voltar ao fim da conversa.
 EFEITOS: ON/OFF pausa ou retoma o fundo pixelado. O movimento funciona
 na sala conectada e pausa automaticamente quando a janela é minimizada.
 Confirmada pelo servidor NÃO significa lida pela outra pessoa.
 Entrega não confirmada significa que a mensagem pode ter chegado.
 
+Clique com o botão direito em uma mensagem para Copiar mensagem.
+Em uma mensagem sua, Editar novamente recupera o texto para revisão.
+Mensagens com falha também oferecem Recuperar texto. Se você já estiver
+escrevendo, o texto recuperado será copiado, preservando seu rascunho.
+Nada é reenviado automaticamente; revise antes de decidir enviar de novo.
+
 Quem conhece o código pode entrar. Apelidos não são identidades verificadas.
 O código não é salvo. HTTPS/WSS protege o transporte; o servidor processa
 as mensagens. Não há criptografia de ponta a ponta nesta versão.
 
-O histórico fica apenas nesta sessão, limitado a 500 itens. Ao trocar de canal,
-sair da sala ou fechar o aplicativo, ele é apagado. Mensagens enviadas enquanto você
-estiver desconectado não serão recuperadas.
+O histórico e o rascunho ficam separados por canal durante a sessão,
+somente na memória: até 500 itens por canal, em no máximo 20 canais.
+Trocar de canal preserva esses dados para quando você voltar.
+Sair da sala ou fechar o aplicativo apaga o histórico e os rascunhos.
+Mensagens enviadas durante sua ausência não serão recuperadas.
 Os canais criados somem se o servidor reiniciar; você retorna ao canal geral.
 
 O programa precisa de um servidor publicado para conversar pela internet.
 localhost serve apenas para testes no mesmo computador.
-Se o servidor gratuito estiver inativo, a primeira conexão pode demorar.
+Para obter o código no Render e orientar a outra pessoa, veja CONEXAO-ONLINE.txt.
 
 Código-fonte, compilação e publicação: README.md na pasta do projeto.

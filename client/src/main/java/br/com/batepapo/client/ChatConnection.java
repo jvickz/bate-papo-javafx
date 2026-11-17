@@ -1,8 +1,11 @@
 package br.com.batepapo.client;
 
 import br.com.batepapo.protocol.*;
+import javax.net.ssl.SSLException;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.http.*;
+import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -33,7 +36,8 @@ public final class ChatConnection implements AutoCloseable {
         loop.setRemoveOnCancelPolicy(true);
         loop.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         loop.scheduleAtFixedRate(() -> {
-            if (connected && System.nanoTime() - lastTraffic > TimeUnit.SECONDS.toNanos(50)) lost(generation.get(), attempt);
+            if (connected && System.nanoTime() - lastTraffic > TimeUnit.SECONDS.toNanos(50))
+                lost(generation.get(), attempt, new HttpTimeoutException("Heartbeat timeout"));
         }, 10, 10, TimeUnit.SECONDS);
     }
     public void connect(String address, String nickname, String accessCode) {
@@ -53,25 +57,34 @@ public final class ChatConnection implements AutoCloseable {
         long a = ++attempt;
         sends = CompletableFuture.completedFuture(null);
         http.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(15)).buildAsync(uri, new Listener(g, a))
-                .whenComplete((ws, error) -> { if (error != null) execute(() -> lost(g, a)); });
-        loop.schedule(() -> { if (active(g, a) && !connected) lost(g, a); }, 20, TimeUnit.SECONDS);
+                .whenComplete((ws, error) -> { if (error != null) execute(() -> lost(g, a, error)); });
+        loop.schedule(() -> {
+            if (active(g, a) && !connected) lost(g, a, new HttpTimeoutException("Connection timeout"));
+        }, 20, TimeUnit.SECONDS);
     }
     private boolean active(long g, long a) { return wanted && generation.get() == g && attempt == a; }
     private void write(Event event, long g, long a) {
         if (!active(g, a) || socket == null) return;
         WebSocket target = socket;
         sends = sends.thenCompose(ignored -> target.sendText(Protocol.encode(event), true));
-        sends.whenComplete((ignored, error) -> { if (error != null) execute(() -> lost(g, a)); });
+        sends.whenComplete((ignored, error) -> { if (error != null) execute(() -> lost(g, a, error)); });
     }
+    /**
+     * A returned ID produces a local pending record before any queued rejection, so the UI can
+     * recover the text in its original channel. Explicit connect/disconnect invalidates that
+     * generation and suppresses queued callbacks; automatic reconnect remains in the same generation.
+     */
     public String send(String text) {
         Protocol.validateText(text);
         if (!connected || closed || switching) throw new IllegalStateException("Aguarde a conexão e a confirmação do canal antes de enviar.");
-        String id = UUID.randomUUID().toString(), targetChannel = channel; long g = generation.get();
+        String id = UUID.randomUUID().toString(), targetChannel = channel, sender = name; long g = generation.get();
         execute(() -> {
-            if (!connected || switching || !channel.equals(targetChannel) || generation.get() != g || pending.size() >= 100) {
-                events.accept(new Event("error", id, null, "Mensagem não enviada. Aguarde a conexão e tente novamente.", null, null, null, null)); return;
+            if (generation.get() != g) return;
+            events.accept(new Event("pending", id, sender, text, null, null, null, null, targetChannel));
+            if (generation.get() != g) return;
+            if (!connected || switching || !channel.equals(targetChannel) || pending.size() >= 100) {
+                events.accept(new Event("error", id, null, "Mensagem não enviada. Aguarde a conexão e recupere o texto para tentar novamente.", null, null, null, null, targetChannel)); return;
             }
-            events.accept(new Event("pending", id, name, text, null, null, null, null, targetChannel));
             pending.put(id, loop.schedule(() -> {
                 if (pending.remove(id) != null) uncertain(id);
             }, 15, TimeUnit.SECONDS));
@@ -145,13 +158,34 @@ public final class ChatConnection implements AutoCloseable {
     private void clearPending() {
         pending.forEach((id, timeout) -> { timeout.cancel(false); uncertain(id); }); pending.clear();
     }
-    private void lost(long g, long a) {
+    private void lost(long g, long a) { lost(g, a, null); }
+    private void lost(long g, long a, Throwable failure) {
         if (!active(g, a)) return;
         attempt++; connected = false;
         if (socket != null) { socket.abort(); socket = null; }
         clearPending(); clearChange(); states.accept("reconnecting");
         long delay = Math.min(30, 1L << Math.min(5, retries++));
+        if (generation.get() != g || !wanted) return;
+        events.accept(new Event("connection", "network", null,
+                failureReason(failure) + " Tentativa " + retries + ". Nova tentativa em " + delay + " s.",
+                null, null, null, null));
         loop.schedule(() -> begin(g), delay, TimeUnit.SECONDS);
+    }
+    /** Only fixed, actionable wording and an HTTP status may reach the UI; never exception messages. */
+    private static String failureReason(Throwable failure) {
+        for (int depth = 0; failure != null && depth < 16; depth++, failure = failure.getCause()) {
+            if (failure instanceof UnknownHostException || failure instanceof UnresolvedAddressException)
+                return "Não foi possível localizar o servidor. Confira o endereço e sua conexão com a internet.";
+            if (failure instanceof SSLException)
+                return "Não foi possível validar a conexão segura. Confira o endereço e a data e hora do Windows.";
+            if (failure instanceof WebSocketHandshakeException handshake)
+                return "O servidor respondeu HTTP " + handshake.getResponse().statusCode() + ". Confira o endereço ou aguarde o serviço iniciar.";
+            if (failure instanceof HttpTimeoutException || failure instanceof TimeoutException)
+                return "O servidor demorou para responder. Confira sua internet ou aguarde o serviço iniciar.";
+            if (failure instanceof IllegalArgumentException)
+                return "O servidor enviou uma resposta inválida. Confira o endereço do Bate-papo.";
+        }
+        return "Não foi possível manter a conexão com o servidor. Confira sua internet ou aguarde o serviço iniciar.";
     }
     public void disconnect() {
         generation.incrementAndGet(); connected = false;
@@ -186,12 +220,12 @@ public final class ChatConnection implements AutoCloseable {
             fragments.append(text);
             if (last) {
                 try { var e = Protocol.decode(fragments.toString()); execute(() -> receive(e, g, a)); }
-                catch (IllegalArgumentException ex) { ws.abort(); execute(() -> lost(g, a)); }
+                catch (IllegalArgumentException ex) { ws.abort(); execute(() -> lost(g, a, ex)); }
                 fragments.setLength(0);
             }
             ws.request(1); return null;
         }
         @Override public CompletionStage<?> onClose(WebSocket ws, int code, String reason) { execute(() -> lost(g, a)); return null; }
-        @Override public void onError(WebSocket ws, Throwable error) { execute(() -> lost(g, a)); }
+        @Override public void onError(WebSocket ws, Throwable error) { execute(() -> lost(g, a, error)); }
     }
 }

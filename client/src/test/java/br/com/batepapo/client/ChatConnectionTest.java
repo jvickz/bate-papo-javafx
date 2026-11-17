@@ -151,4 +151,102 @@ class ChatConnectionTest {
             assertEquals(1, count.get());
         } finally { silent.stop(); }
     }
+    @Test void queuedSendRejectedByChannelSwitchKeepsItsTextInTheOriginalChannel() throws Exception {
+        var events = new CopyOnWriteArrayList<Event>();
+        var connected = new CountDownLatch(1); var release = new CountDownLatch(1);
+        var joined = new CompletableFuture<Event>();
+        var c = new ChatConnection(event -> {
+            events.add(event);
+            if (event.type().equals("joined")) joined.complete(event);
+        }, state -> {
+            if (state.equals("connected") && connected.getCount() > 0) {
+                connected.countDown(); waitForRelease(release);
+            }
+        });
+        clients.add(c); c.connect(url(), "Ana", TOKEN);
+        assertTrue(connected.await(5, TimeUnit.SECONDS));
+        String id;
+        try {
+            id = c.send("Texto que preciso recuperar 👋");
+            c.createChannel("viagem");
+        } finally { release.countDown(); }
+        assertEquals("viagem", joined.get(5, TimeUnit.SECONDS).channel());
+        var matching = events.stream().filter(e -> id.equals(e.id())).toList();
+        assertEquals(List.of("pending", "error"), matching.stream().map(Event::type).toList());
+        assertEquals("Texto que preciso recuperar 👋", matching.getFirst().text());
+        assertEquals("Ana", matching.getFirst().name());
+        assertEquals("geral", matching.getFirst().channel());
+        assertEquals("geral", matching.getLast().channel());
+    }
+    @Test void queuedSendFromAnOldLoginCannotLeakIntoTheNewSession() throws Exception {
+        var events = new CopyOnWriteArrayList<Event>();
+        var connected = new CountDownLatch(1); var release = new CountDownLatch(1);
+        var newSession = new CompletableFuture<Event>();
+        var c = new ChatConnection(event -> {
+            events.add(event);
+            if (event.type().equals("welcome") && "Bia".equals(event.name())) newSession.complete(event);
+        }, state -> {
+            if (state.equals("connected") && connected.getCount() > 0) {
+                connected.countDown(); waitForRelease(release);
+            }
+        });
+        clients.add(c); c.connect(url(), "Ana", TOKEN);
+        assertTrue(connected.await(5, TimeUnit.SECONDS));
+        String id;
+        try {
+            id = c.send("Rascunho da sessão anterior");
+            c.connect(url(), "Bia", TOKEN);
+        } finally { release.countDown(); }
+        assertEquals("Bia", newSession.get(5, TimeUnit.SECONDS).name());
+        assertTrue(events.stream().noneMatch(e -> id.equals(e.id())), "Gerações antigas não podem emitir callbacks de envio na sessão nova");
+    }
+    @Test void handshakeFailureReportsSafeRetryDetailsAfterTheReconnectState() throws Exception {
+        var order = new CopyOnWriteArrayList<Object>();
+        var diagnostic = new CompletableFuture<Event>();
+        String secretDetail = "private-upstream-detail-" + TOKEN;
+        var remote = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        remote.createContext("/chat", exchange -> {
+            byte[] body = secretDetail.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(503, body.length);
+            try (var output = exchange.getResponseBody()) { output.write(body); }
+        });
+        remote.start();
+        try {
+            var c = new ChatConnection(event -> {
+                order.add(event);
+                if (event.type().equals("connection")) diagnostic.complete(event);
+            }, order::add);
+            clients.add(c); c.connect("ws://127.0.0.1:" + remote.getAddress().getPort(), "Ana", TOKEN);
+            Event notice = assertDoesNotThrow(() -> diagnostic.get(5, TimeUnit.SECONDS), "A falha de conexão precisa gerar um diagnóstico local");
+            assertEquals("network", notice.id());
+            assertTrue(notice.text().contains("503"), notice::text);
+            assertTrue(notice.text().toLowerCase(Locale.ROOT).contains("tentativa 1"));
+            assertTrue(notice.text().contains("1 s"));
+            assertFalse(notice.text().contains(TOKEN));
+            assertFalse(notice.text().contains(secretDetail));
+            assertNull(notice.token()); assertNull(notice.session());
+            assertTrue(order.indexOf("reconnecting") >= 0);
+            assertTrue(order.indexOf("reconnecting") < order.indexOf(notice), "O estado deve chegar antes para não apagar o diagnóstico");
+        } finally { remote.stop(0); }
+    }
+    @Test void tlsFailureExplainsTheSecureConnectionWithoutExposingTheException() throws Exception {
+        var diagnostic = new CompletableFuture<Event>();
+        var c = new ChatConnection(event -> {
+            if (event.type().equals("connection")) diagnostic.complete(event);
+        }, state -> {});
+        clients.add(c);
+        // A TLS handshake against this plain HTTP endpoint fails locally without trusting a certificate.
+        c.connect("wss://localhost:" + server.port(), "Ana", TOKEN);
+        Event notice = assertDoesNotThrow(() -> diagnostic.get(5, TimeUnit.SECONDS), "TLS precisa de um diagnóstico local legível");
+        assertTrue(notice.text().toLowerCase(Locale.ROOT).contains("conexão segura"));
+        assertFalse(notice.text().contains("Exception"));
+        assertFalse(notice.text().contains(TOKEN));
+    }
+    private static void waitForRelease(CountDownLatch release) {
+        try {
+            if (!release.await(5, TimeUnit.SECONDS)) throw new AssertionError("O teste não liberou a fila de conexão");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt(); throw new AssertionError(ex);
+        }
+    }
 }
