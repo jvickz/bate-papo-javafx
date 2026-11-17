@@ -1,0 +1,9 @@
+**/target/
+.tools/
+.local/
+dist/
+.superpowers/
+*.log
+.env
+.idea/
+*.iml

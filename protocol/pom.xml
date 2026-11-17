@@ -1,0 +1,5 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+  <parent><groupId>br.com.batepapo</groupId><artifactId>bate-papo</artifactId><version>1.0.0</version></parent>
+  <artifactId>protocol</artifactId>
+  <dependencies><dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>2.23.0</version></dependency></dependencies>
+</project>
