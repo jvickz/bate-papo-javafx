@@ -12,6 +12,8 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 RUN groupadd --system chat && useradd --system --gid chat chat
 COPY --from=build /src/server/target/server-1.0.0.jar /app/server.jar
+COPY server/certs/supabase-prod-ca-2021.crt /app/certs/supabase-prod-ca-2021.crt
+ENV WAVECOVE_SUPABASE_CA=/app/certs/supabase-prod-ca-2021.crt
 USER chat
 ENV PORT=8080
 EXPOSE 8080

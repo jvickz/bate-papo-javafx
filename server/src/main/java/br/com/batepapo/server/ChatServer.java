@@ -3,6 +3,7 @@ package br.com.batepapo.server;
 import br.com.batepapo.protocol.Protocol;
 import br.com.batepapo.protocol.Attachment;
 import io.javalin.Javalin;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.*;
 
@@ -14,10 +15,23 @@ public final class ChatServer implements AutoCloseable {
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("room-heartbeat").factory());
     public ChatServer(String token, int port) { this(token, port, null); }
 
+    public static ChatServer localAccounts(Path file, int port) {
+        return localAccounts(file, port, null);
+    }
+
+    static ChatServer localAccounts(Path file, int port, TurnCredentialsProvider turn) {
+        return new ChatServer(null, port, turn, AccountStore.local(file));
+    }
+
     ChatServer(String token, int port, TurnCredentialsProvider turn) {
+        this(token, port, turn, null);
+    }
+
+    ChatServer(String token, int port, TurnCredentialsProvider turn, AccountStore store) {
         this.port = port;
         this.turn = turn;
-        room = new Room(token, turn, System::nanoTime);
+        var sessions = store == null ? null : new AccountSessions(System::nanoTime);
+        room = new Room(token, turn, System::nanoTime, sessions);
         var attachments = new AttachmentRoutes(room);
         app = Javalin.create(config -> {
             config.startup.showJavalinBanner = false;
@@ -29,6 +43,12 @@ public final class ChatServer implements AutoCloseable {
                 factory.setIdleTimeout(Duration.ofSeconds(60));
             });
             config.routes.get("/health", ctx -> ctx.contentType("application/json").result("{\"status\":\"ok\"}"));
+            if (store != null) {
+                var accounts = new AccountRoutes(store, sessions, room);
+                config.routes.post("/accounts/register", ctx -> accounts.authenticate(ctx, true));
+                config.routes.post("/accounts/login", ctx -> accounts.authenticate(ctx, false));
+                config.routes.post("/accounts/logout", accounts::logout);
+            }
             config.routes.post(Attachment.PATH, attachments::upload);
             config.routes.get(Attachment.PATH + "/{id}", attachments::download);
             config.routes.ws("/chat", ws -> {

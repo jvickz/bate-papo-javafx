@@ -43,6 +43,7 @@ final class Room {
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private final byte[] accessCode;
+    private final AccountSessions accountSessions;
     private final TurnCredentialsProvider turn;
     private final LongSupplier clock;
     private final Map<UUID, Call> calls = new LinkedHashMap<>();
@@ -61,6 +62,7 @@ final class Room {
         long seen, ping, window, nextInvite;
         int frames, commands, messages, signals, signalBytes;
         String name, resume, channel;
+        String accountToken;
         String attachmentSession;
         long channelRevision, nextUpload;
         boolean supportsChannels, supportsVoice;
@@ -98,9 +100,16 @@ final class Room {
     Room(String token) { this(token, null, System::nanoTime); }
 
     Room(String token, TurnCredentialsProvider turn, LongSupplier clock) {
-        if (token == null || token.length() < 24 || token.length() > 128 || token.isBlank())
-            throw new IllegalArgumentException("CHAT_ACCESS_TOKEN deve ter entre 24 e 128 caracteres aleatórios.");
-        accessCode = token.getBytes(StandardCharsets.UTF_8);
+        this(token, turn, clock, null);
+    }
+
+    Room(String token, TurnCredentialsProvider turn, LongSupplier clock, AccountSessions sessions) {
+        accountSessions = sessions;
+        if (sessions == null) {
+            if (token == null || token.length() < 24 || token.length() > 128 || token.isBlank())
+                throw new IllegalArgumentException("CHAT_ACCESS_TOKEN deve ter entre 24 e 128 caracteres aleatórios.");
+            accessCode = token.getBytes(StandardCharsets.UTF_8);
+        } else accessCode = null;
         this.turn = turn;
         this.clock = clock;
     }
@@ -235,19 +244,28 @@ final class Room {
     }
 
     private void authenticate(String id, Member member, Event event) {
-        if (!event.type().equals("hello") || event.token() == null || event.token().length() > 128 ||
-                !MessageDigest.isEqual(accessCode, event.token().getBytes(StandardCharsets.UTF_8))) {
-            error(member, "auth", "Código de acesso incorreto."); kick(id); return;
+        final String name;
+        if (accountSessions != null) {
+            name = accountSessions.owner(event.token());
+            if (!event.type().equals("hello") || name == null || !name.equalsIgnoreCase(event.name())) {
+                error(member, "auth", "Sessão inválida ou expirada. Entre na sua conta novamente."); kick(id); return;
+            }
+            member.accountToken = event.token();
+        } else {
+            if (!event.type().equals("hello") || event.token() == null || event.token().length() > 128 ||
+                    !MessageDigest.isEqual(accessCode, event.token().getBytes(StandardCharsets.UTF_8))) {
+                error(member, "auth", "Código de acesso incorreto."); kick(id); return;
+            }
+            try { name = Protocol.validateName(event.name()); }
+            catch (IllegalArgumentException ex) { error(member, "name", ex.getMessage()); kick(id); return; }
         }
-        String name;
-        try { name = Protocol.validateName(event.name()); }
-        catch (IllegalArgumentException ex) { error(member, "name", ex.getMessage()); kick(id); return; }
         String previousChannel = null;
         var existing = members.entrySet().stream().filter(e -> name.equalsIgnoreCase(e.getValue().name)).findFirst();
         if (existing.isPresent()) {
             Member old = existing.get().getValue();
             if (event.session() == null || !old.resume.equals(event.session())) {
-                error(member, "name", "Este apelido já está em uso. Escolha outro."); kick(id); return;
+                error(member, "name", accountSessions == null ? "Este apelido já está em uso. Escolha outro."
+                        : "Sua conta já está conectada. Saia na outra janela para entrar aqui."); kick(id); return;
             }
             previousChannel = old.channel;
             member.resume = old.resume;
@@ -592,12 +610,23 @@ final class Room {
 
     private void kick(String id) { var m = members.get(id); remove(id); if (m != null) m.transport.close(); }
 
+    synchronized void revokeAccountSession(String token) {
+        accountSessions.revoke(token);
+        for (var entry : List.copyOf(members.entrySet())) {
+            if (token.equals(entry.getValue().accountToken)) kick(entry.getKey());
+        }
+    }
+
     synchronized void tick() {
         long now = clock.getAsLong();
         expireAttachments(now);
         for (Call call : List.copyOf(calls.values())) expireCall(call, now);
         for (var entry : List.copyOf(members.entrySet())) {
             var m = entry.getValue();
+            if (m.accountToken != null && accountSessions.owner(m.accountToken) == null) {
+                error(m, "auth", "Sua sessão expirou. Entre na sua conta novamente.");
+                kick(entry.getKey()); continue;
+            }
             if ((m.name == null && now - m.connected > 10_000_000_000L) || now - m.seen > 45_000_000_000L) { kick(entry.getKey()); continue; }
             if (m.name != null && now - m.ping > 15_000_000_000L) {
                 m.ping = now; send(m, Event.of("ping", null));
