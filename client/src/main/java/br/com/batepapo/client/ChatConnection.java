@@ -42,15 +42,15 @@ public final class ChatConnection implements AutoCloseable {
                 lost(generation.get(), attempt, new HttpTimeoutException("Heartbeat timeout"));
         }, 10, 10, TimeUnit.SECONDS);
     }
-    public void connect(String address, String nickname, String accessCode) {
+    public void connect(String address, String nickname, String sessionToken) {
         if (closed) throw new IllegalStateException("Aplicativo encerrado.");
         URI validated = Protocol.serverUri(address);
         String validatedName = Protocol.validateName(nickname);
-        if (accessCode == null || accessCode.isBlank() || accessCode.length() > 128)
-            throw new IllegalArgumentException("Informe o código de acesso da sala.");
+        if (sessionToken == null || sessionToken.isBlank() || sessionToken.length() > 128)
+            throw new IllegalArgumentException("Sessão inválida. Entre novamente na sua conta.");
         long g = generation.incrementAndGet(); connected = false;
         execute(() -> {
-            stop(); uri = validated; name = validatedName; token = accessCode; resume = null; retries = 0; channel = "geral"; wanted = true;
+            stop(); uri = validated; name = validatedName; token = sessionToken; resume = null; retries = 0; channel = "geral"; wanted = true;
             if (generation.get() == g) { states.accept("connecting"); begin(g); }
         });
     }

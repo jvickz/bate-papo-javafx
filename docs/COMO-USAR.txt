@@ -1,54 +1,39 @@
-WAVECOVE 1.6 — WINDOWS x64
+WAVECOVE 1.7 — WINDOWS x64
 
-1. Se recebeu Wavecove-1.6.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
+1. Se recebeu Wavecove-1.7.0.msi, feche a versão anterior, abra o instalador e siga as etapas.
    Se recebeu um ZIP, extraia tudo antes de abrir Wavecove.exe.
    Não copie apenas o EXE: as pastas app e runtime fazem parte do programa.
    Não precisa instalar Java separadamente.
 
-2. Abra o Wavecove. Um apelido já vem preenchido; você pode editá-lo
-   ou clicar em Gerar outro. Cole o código de acesso recebido e entre.
-   Se o apelido estiver em uso, clique em Gerar outro e tente novamente.
+2. No primeiro acesso, selecione Criar conta. Escolha um nome com 3 a 24
+   letras sem acento, números ou _ e uma senha de 12 a 128 caracteres.
+   Depois use Entrar com esse usuário e senha, inclusive em outro computador.
+   Se a conta já estiver aberta em outro computador, saia antes de trocar.
+
+3. Peça que a outra pessoa crie sua própria conta no mesmo servidor.
+   O padrão é https://bate-papo-java.onrender.com. Em Configurações do
+   servidor, você pode conferir o endereço e usar Verificar servidor.
+
+4. Escolham o mesmo canal na lateral e procurem os dois nomes na lista.
+   Para criar um canal, preencha novo-canal e clique em +. Use 2 a 24 letras,
+   números ou hífens. As pessoas conectadas podem entrar nos canais.
+   Outra janela permite testar duas contas no mesmo computador.
+
+5. Convidar pessoa copia o servidor e o canal atual. Envie à outra pessoa
+   o convite e o instalador. Cada pessoa usa a sua própria senha.
 
 FOTOS E VÍDEOS
 
 No canal, use Anexar para enviar uma foto JPG/PNG de até 5 MB e
 8 megapixels ou um vídeo MP4 de até 15 MB. A outra pessoa pode usar
 Ver foto, Salvar foto ou Baixar vídeo. Abra o vídeo salvo no Windows.
-Os dois lados precisam do Wavecove 1.6 e de um servidor atualizado.
 Os anexos ficam disponíveis por até 30 minutos e somem se o servidor reiniciar.
-   O código digitado é mantido nessa tentativa.
-
-   O servidor padrão é https://bate-papo-java.onrender.com.
-   Para conferir ou alterar o endereço, expanda
-   Servidor e diagnóstico de conexão na tela de entrada.
-
-3. A outra pessoa abre o aplicativo com outro apelido, o MESMO servidor
-   e o MESMO código. Escolham o MESMO canal na lista da lateral.
-   Confiram a lista de participantes e enviem uma mensagem em cada sentido.
-   Isso também funciona em computadores em locais e redes diferentes.
-
-4. Para criar um canal, preencha novo-canal e clique em +. Use 2 a 24 letras,
-   números ou hífens. Para trocar, clique no canal desejado.
-   OUTRA JANELA abre uma segunda sessão para testar neste computador.
-   Todos que possuem o código podem acessar todos os canais.
-
-5. Convidar pessoa copia um convite com o servidor e o canal atual.
-   Cole esse convite na mensagem que enviará à outra pessoa.
-   O convite não contém o código: compartilhe o código em particular,
-   separadamente. A pessoa precisa instalar ou extrair o aplicativo,
-   entrar com esse código e selecionar o canal informado.
-
-6. Verificar servidor consulta o endereço /health por HTTP/HTTPS.
-   Esse teste não verifica o código de acesso nem a conexão WebSocket
-   usada na conversa. Se o servidor gratuito estiver iniciando, aguarde
-   um minuto e tente novamente; depois use Entrar.
 
 Enter envia. Shift+Enter quebra a linha.
 O contador mostra o limite de 2000 caracteres por mensagem.
 Enquanto você lê mensagens antigas, as novas não puxam a tela para baixo.
 Use o botão de novas mensagens para voltar ao fim da conversa.
-EFEITOS: ON/OFF pausa ou retoma o fundo pixelado. O movimento funciona
-na sala conectada e pausa automaticamente quando a janela é minimizada.
+O controle de movimento permite pausar os cenários animados do cadastro e da conversa. Minimizar a janela também pausa a animação.
 Confirmada pelo servidor NÃO significa lida pela outra pessoa.
 Entrega não confirmada significa que a mensagem pode ter chegado.
 
@@ -58,9 +43,7 @@ Mensagens com falha também oferecem Recuperar texto. Se você já estiver
 escrevendo, o texto recuperado será copiado, preservando seu rascunho.
 Nada é reenviado automaticamente; revise antes de decidir enviar de novo.
 
-Quem conhece o código pode entrar. Apelidos não são identidades verificadas.
-O código não é salvo. HTTPS/WSS protege o transporte; o servidor processa
-as mensagens. Não há criptografia de ponta a ponta nesta versão.
+O servidor autentica cada conta. A conexão com o servidor online usa HTTPS/WSS. O servidor processa o texto das conversas.
 
 O histórico e o rascunho ficam separados por canal durante a sessão,
 somente na memória: até 500 itens por canal, em no máximo 20 canais.
@@ -71,7 +54,7 @@ Os canais criados somem se o servidor reiniciar; você retorna ao canal geral.
 
 O programa precisa de um servidor publicado para conversar pela internet.
 localhost serve apenas para testes no mesmo computador.
-Para obter o código no Render e orientar a outra pessoa, veja CONEXAO-ONLINE.txt.
+Para testar com outra pessoa, veja CONEXAO-ONLINE.txt.
 
 Código-fonte, compilação e publicação: README.md na pasta do projeto.
 

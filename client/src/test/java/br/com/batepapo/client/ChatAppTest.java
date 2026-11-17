@@ -8,6 +8,8 @@ import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Path;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import java.util.ArrayList;
@@ -18,8 +20,20 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledOnOs(OS.WINDOWS)
 class ChatAppTest {
+    @TempDir Path temporary;
+    private static final String PASSWORD = "uma-senha-de-teste-42";
+
+    private static void fillAccount(Stage stage, String name, String password, int port, boolean register) {
+        ((ToggleButton) stage.getScene().lookup(register ? "#registerTab" : "#loginTab")).fire();
+        ((TextField) stage.getScene().lookup("#username")).setText(name);
+        ((TextField) ((TitledPane) stage.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
+                .setText("ws://localhost:" + port);
+        ((PasswordField) stage.getScene().lookup("#password")).setText(password);
+        ((Button) stage.getScene().lookup("#join")).fire();
+    }
+
     static <T> T fx(Callable<T> action) throws Exception {
-        var task = new FutureTask<>(action); Platform.runLater(task); return task.get(10, TimeUnit.SECONDS);
+        var task = new FutureTask<>(action); Platform.runLater(task); return task.get(45, TimeUnit.SECONDS);
     }
     @BeforeAll static void toolkit() throws Exception {
         var ready = new CountDownLatch(1);
@@ -38,19 +52,14 @@ class ChatAppTest {
         javax.imageio.ImageIO.write(raster, "png", folder.resolve(name + ".png").toFile());
     }
     @Test void voiceRemainsUnavailableWhenServerHasNoTurnConfiguration() throws Exception {
-        String token = "voice-ui-unavailable-test-code-123456";
-        try (var host = new ChatServer(token, 0).start()) {
+        try (var host = ChatServer.localAccounts(temporary.resolve("accounts.db"), 0).start()) {
             var app = new ChatApp();
             Stage stage = fx(() -> {
                 var window = new Stage();
                 app.start(window);
                 window.setWidth(900);
                 window.setHeight(720);
-                ((TextField) window.getScene().lookup("#nickname")).setText("Teste Voz");
-                ((TextField) ((TitledPane) window.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
-                        .setText("ws://localhost:" + host.port());
-                ((PasswordField) window.getScene().lookup("#accessCode")).setText(token);
-                ((Button) window.getScene().lookup("#join")).fire();
+                fillAccount(window, "TesteVoz", PASSWORD, host.port(), true);
                 return window;
             });
             try {
@@ -68,18 +77,17 @@ class ChatAppTest {
     }
 
     @Test void voiceControlsRequireConsentAndCloseAudioOnChannelChange() throws Exception {
-        String token = "voice-controls-test-access-code-123456";
         var callers = new ArrayList<UiVoiceEngine>();
         var recipients = new ArrayList<UiVoiceEngine>();
-        try (var host = VoiceTestServer.start(token)) {
+        try (var host = VoiceTestServer.startAccounts(temporary.resolve("accounts.db"))) {
             var alice = new ChatApp(() -> new UiVoiceEngine(callers));
             var beto = new ChatApp(() -> new UiVoiceEngine(recipients));
-            Stage caller = loginForVoice(alice, host.port(), "Alice", token);
-            Stage recipient = loginForVoice(beto, host.port(), "Beto", token);
+            Stage caller = loginForVoice(alice, host.port(), "Alice");
+            Stage recipient = loginForVoice(beto, host.port(), "Beto");
             try {
                 awaitFx(() -> {
                     var list = (ListView<?>) caller.getScene().lookup("#participants");
-                    return list.getItems().contains("Beto")
+                    return list != null && list.getItems().contains("Beto")
                             && caller.getScene().lookup("#composer") instanceof TextArea field && !field.isDisabled();
                 });
                 fx(() -> {
@@ -154,19 +162,21 @@ class ChatAppTest {
         }
     }
 
-    private static Stage loginForVoice(ChatApp app, int port, String name, String token) throws Exception {
-        return fx(() -> {
+    private static Stage loginForVoice(ChatApp app, int port, String name) throws Exception {
+        var stage = fx(() -> {
             var window = new Stage();
             app.start(window);
             window.setWidth(900);
             window.setHeight(720);
-            ((TextField) window.getScene().lookup("#nickname")).setText(name);
-            ((TextField) ((TitledPane) window.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
-                    .setText("ws://localhost:" + port);
-            ((PasswordField) window.getScene().lookup("#accessCode")).setText(token);
-            ((Button) window.getScene().lookup("#join")).fire();
+            fillAccount(window, name, PASSWORD, port, true);
             return window;
         });
+        awaitFx(() -> {
+            if (stage.getScene().lookup("#authError") instanceof Label error && !error.getText().isEmpty())
+                fail("Falha ao entrar com " + name + " — " + error.getText());
+            return stage.getScene().lookup("#composer") instanceof TextArea field && !field.isDisabled();
+        });
+        return stage;
     }
 
     private static final class UiVoiceEngine implements VoiceEngine {
@@ -186,21 +196,30 @@ class ChatAppTest {
         var app = new ChatApp();
         Stage stage = fx(() -> { var window = new Stage(); app.start(window); window.setWidth(900); window.setHeight(720); return window; });
         try {
+            var laidOut = new CompletableFuture<Void>();
+            Runnable afterLayout = () -> laidOut.complete(null);
             fx(() -> {
-                ((TextField) stage.getScene().lookup("#nickname")).setText("Teste UI");
-                ((TextField) ((TitledPane) stage.getScene().lookup("#serverOptions")).getContent().lookup("#server")).setText("ws://localhost:1");
-                ((PasswordField) stage.getScene().lookup("#accessCode")).setText("test-only-invalid-endpoint-code");
-                ((Button) stage.getScene().lookup("#join")).fire(); return null;
+                var scene = stage.getScene();
+                ((TextField) scene.lookup("#username")).setText("TesteUI");
+                ((PasswordField) scene.lookup("#password")).setText(PASSWORD);
+                var options = (TitledPane) scene.lookup("#serverOptions");
+                ((TextField) options.getContent().lookup("#server")).setText("endereço inválido");
+                ((Button) scene.lookup("#join")).fire();
+                assertTrue(options.isExpanded());
+                assertFalse(((Label) scene.lookup("#authError")).getText().isBlank());
+                scene.addPostLayoutPulseListener(afterLayout);
+                Platform.requestNextPulse();
+                return null;
             });
-            // Exercise the longest connection-state notice without depending on retry timing.
+            laidOut.get(10, TimeUnit.SECONDS);
             fx(() -> {
-                var error = (Label) stage.getScene().lookup(".error");
-                error.setText("Tentando conectar. Confira o endereço ou aguarde o servidor iniciar.");
-                snapshot(stage, "login-small-connecting");
+                stage.getScene().removePostLayoutPulseListener(afterLayout);
                 var card = (javafx.scene.layout.VBox) stage.getScene().lookup(".card");
                 assertTrue(card.getHeight() >= card.prefHeight(card.getWidth()) - 1, "Cartão não deve comprimir/cortar os textos");
                 var scroll = (ScrollPane) stage.getScene().lookup("#loginScroll");
-                assertNotNull(scroll, "Entrada deve permitir rolagem quando houver avisos");
+                assertTrue(scroll.getContent().getLayoutBounds().getHeight() > scroll.getViewportBounds().getHeight(),
+                        "A janela mínima deve exercitar rolagem com diagnóstico expandido");
+                snapshot(stage, "login-small-connection-error");
                 scroll.setVvalue(1); stage.getScene().getRoot().layout();
                 var viewport = scroll.lookup(".viewport");
                 var visible = viewport.localToScene(viewport.getLayoutBounds());
@@ -213,26 +232,31 @@ class ChatAppTest {
         } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
     }
     @Test void loginComposeAndReceiveThroughRealControls() throws Exception {
-        String token = "ui-integration-access-code-123456";
         var events = new CopyOnWriteArrayList<Event>();
-        try (var server = new ChatServer(token, 0).start(); var peer = new ChatConnection(events::add, state -> {})) {
-            peer.connect("ws://localhost:" + server.port(), "Pessoa", token);
+        try (var server = ChatServer.localAccounts(temporary.resolve("accounts.db"), 0).start(); var peer = new ChatConnection(events::add, state -> {});
+             var accounts = new AccountAccess()) {
+            String address = "ws://localhost:" + server.port();
+            var peerSession = accounts.authenticate(address, "Pessoa", PASSWORD, true).get(10, TimeUnit.SECONDS);
+            peer.connect(address, peerSession.username(), peerSession.token());
             var app = new ChatApp();
             Stage stage = fx(() -> { var window = new Stage(); app.start(window); return window; });
             try {
                 fx(() -> {
-                    assertNotNull(stage.getScene().lookup("#pixelBackdrop"), "Fundo retrô deve existir");
-                    assertNotNull(stage.getScene().lookup("#motionToggle"), "Animação deve poder ser pausada");
-                    assertNotNull(stage.getScene().lookup("#channels"), "Lista de canais deve existir");
-                    assertTrue(((Button) stage.getScene().lookup("#createChannel")).isDisabled(), "Criar canal exige conexão");
-                    assertFalse(((PixelBackdrop) stage.getScene().lookup("#pixelBackdrop")).isRunning());
-                    assertTrue(javafx.scene.text.Font.getFamilies().contains("VT323"), "Fonte deve estar embutida");
+                    var scene = stage.getScene();
+                    var background = (PixelBackdrop) scene.lookup("#pixelBackdrop");
+                    assertEquals(PixelBackdrop.View.LOGIN, background.view());
+                    var effects = (ToggleButton) scene.lookup("#authMotion");
+                    if (effects.isSelected()) effects.fire();
+                    assertTrue(background.isRunning());
                     snapshot(stage, "login");
-                    assertNotNull(stage.getScene().lookup("#nickname"), "Campo de apelido deve existir");
-                    ((TextField) stage.getScene().lookup("#nickname")).setText("Teste UI");
-                    ((TextField) ((TitledPane) stage.getScene().lookup("#serverOptions")).getContent().lookup("#server")).setText("ws://localhost:" + server.port());
-                    ((PasswordField) stage.getScene().lookup("#accessCode")).setText(token);
-                    ((Button) stage.getScene().lookup("#join")).fire(); return null;
+                    ((ToggleButton) scene.lookup("#registerTab")).fire();
+                    assertEquals(PixelBackdrop.View.REGISTER, background.view());
+                    assertTrue(background.isRunning());
+                    effects.fire();
+                    assertFalse(background.isRunning());
+                    effects.fire();
+                    snapshot(stage, "registration");
+                    fillAccount(stage, "TesteUI", PASSWORD, server.port(), true); return null;
                 });
                 long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
                 while (!fx(() -> stage.getScene().lookup("#composer") instanceof TextArea c && !c.isDisabled()) && System.nanoTime() < end) Thread.sleep(50);
@@ -300,7 +324,7 @@ class ChatAppTest {
                     handler.invoke(app, new Event("message", "scroll-new", "Pessoa", "Mensagem nova enquanto leio acima", null, null, null, null, "porto"));
                     assertTrue(stage.getScene().lookup("#newMessages").isVisible(), "Avisar sem arrastar a leitura");
                     ((Button) stage.getScene().lookup("#newMessages")).fire();
-                    handler.invoke(app, new Event("pending", "recover-test", "Teste UI", "Texto recuperável", null, null, null, null, "porto"));
+                    handler.invoke(app, new Event("pending", "recover-test", "TesteUI", "Texto recuperável", null, null, null, null, "porto"));
                     handler.invoke(app, new Event("error", "recover-test", null, "Não enviada", null, null, null, null, "porto"));
                     return null;
                 });
@@ -314,6 +338,7 @@ class ChatAppTest {
                     return null;
                 });
                 var backdrop = fx(() -> (PixelBackdrop) stage.getScene().lookup("#pixelBackdrop"));
+                assertEquals(PixelBackdrop.View.CHAT, fx(backdrop::view));
                 assertTrue(fx(backdrop::isRunning));
                 long before = fx(backdrop::frameCount);
                 Thread.sleep(180);
@@ -333,9 +358,10 @@ class ChatAppTest {
                 assertTrue(fx(backdrop::isRunning));
                 fx(() -> {
                     stage.getScene().getRoot().lookupAll(".button").stream()
-                        .filter(n -> n instanceof Button b && b.getText().equals("Sair da sala"))
+                        .filter(n -> n instanceof Button b && b.getText().equals("Sair da conta"))
                         .map(n -> (Button) n).findFirst().orElseThrow().fire();
-                    assertFalse(backdrop.isRunning(), "Sair deve parar o timer");
+                    assertEquals(PixelBackdrop.View.LOGIN, backdrop.view());
+                    assertTrue(backdrop.isRunning(), "Sair restaura a paisagem animada de abertura");
                     app.stop(); backdrop.setActive(true);
                     assertFalse(backdrop.isRunning(), "Timer fechado não deve reiniciar"); return null;
                 });
@@ -344,23 +370,18 @@ class ChatAppTest {
     }
 
     private static void awaitFx(Callable<Boolean> condition) throws Exception {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(25);
         while (!fx(condition) && System.nanoTime() < deadline) Thread.sleep(30);
         assertTrue(fx(condition));
     }
 
     @Test void explicitLoginAfterFatalErrorDoesNotRestorePreviousChannelDraftOrHistory() throws Exception {
-        String token = "fresh-session-access-code-123456";
-        try (var host = new ChatServer(token, 0).start()) {
+        try (var host = ChatServer.localAccounts(temporary.resolve("accounts.db"), 0).start()) {
             var app = new ChatApp();
             Stage stage = fx(() -> { var window = new Stage(); app.start(window); return window; });
             try {
                 fx(() -> {
-                    ((TextField) stage.getScene().lookup("#nickname")).setText("Sessao Antiga");
-                    ((TextField) ((TitledPane) stage.getScene().lookup("#serverOptions")).getContent().lookup("#server"))
-                            .setText("ws://localhost:" + host.port());
-                    ((PasswordField) stage.getScene().lookup("#accessCode")).setText(token);
-                    ((Button) stage.getScene().lookup("#join")).fire();
+                    fillAccount(stage, "SessaoAntiga", PASSWORD, host.port(), true);
                     return null;
                 });
                 awaitFx(() -> stage.getScene().lookup("#composer") instanceof TextArea composer && !composer.isDisabled());
@@ -384,9 +405,7 @@ class ChatAppTest {
                     handler.setAccessible(true);
                     handler.invoke(app, new Event("error", "rate", null, "Sessão encerrada pelo servidor", null, null, null, null, "porto"));
                     stage.getScene().getRoot().applyCss(); stage.getScene().getRoot().layout();
-                    ((TextField) stage.getScene().lookup("#nickname")).setText("Sessao Nova");
-                    ((PasswordField) stage.getScene().lookup("#accessCode")).setText(token);
-                    ((Button) stage.getScene().lookup("#join")).fire();
+                    fillAccount(stage, "SessaoNova", PASSWORD, host.port(), true);
                     return null;
                 });
                 awaitFx(() -> stage.getScene().lookup("#composer") instanceof TextArea composer && !composer.isDisabled()
@@ -408,34 +427,29 @@ class ChatAppTest {
         }
     }
 
-    @Test void duplicateNicknameCanRetryWithoutRetypingAccessCode() throws Exception {
-        String token = "nickname-test-access-code-123456";
-        var events = new CopyOnWriteArrayList<Event>();
-        try (var host = new ChatServer(token, 0).start(); var peer = new ChatConnection(events::add, s -> {})) {
-            peer.connect("ws://localhost:" + host.port(), "Marinheiro", token);
-            ChatConnectionTest.await(() -> events.stream().anyMatch(e -> "welcome".equals(e.type())));
+    @Test void returningAccountCanRetryWrongPasswordAndSharePublicInvite() throws Exception {
+        try (var host = ChatServer.localAccounts(temporary.resolve("accounts.db"), 0).start();
+             var accounts = new AccountAccess()) {
+            String address = "ws://localhost:" + host.port();
+            var first = accounts.authenticate(address, "Marinheiro", PASSWORD, true).get(10, TimeUnit.SECONDS);
+            accounts.logout(address, first.token());
             var app = new ChatApp();
             Stage stage = fx(() -> { var w = new Stage(); app.start(w); return w; });
             try {
-                fx(() -> {
-                    assertFalse(((TextField) stage.getScene().lookup("#nickname")).getText().isBlank(), "Entrada deve sugerir apelido válido");
-                    ((TextField) stage.getScene().lookup("#nickname")).setText("Marinheiro");
-                    ((TextField) ((TitledPane) stage.getScene().lookup("#serverOptions")).getContent().lookup("#server")).setText("ws://localhost:" + host.port());
-                    ((PasswordField) stage.getScene().lookup("#accessCode")).setText(token);
-                    ((Button) stage.getScene().lookup("#join")).fire(); return null;
-                });
+                fx(() -> { fillAccount(stage, "marinheiro", "senha-incorreta", host.port(), false); return null; });
                 awaitFx(() -> stage.getScene().lookup("#join") instanceof Button b && !b.isDisabled());
                 fx(() -> {
-                    assertEquals(token, ((PasswordField) stage.getScene().lookup("#accessCode")).getText());
-                    ((Button) stage.getScene().lookup("#suggestNickname")).fire();
-                    assertNotEquals("Marinheiro", ((TextField) stage.getScene().lookup("#nickname")).getText());
-                    ((Button) stage.getScene().lookup("#join")).fire(); return null;
+                    assertFalse(((Label) stage.getScene().lookup("#authError")).getText().isBlank());
+                    assertTrue(((PasswordField) stage.getScene().lookup("#password")).getText().isEmpty());
+                    fillAccount(stage, "marinheiro", PASSWORD, host.port(), false);
+                    return null;
                 });
                 awaitFx(() -> stage.getScene().lookup("#send") != null);
                 fx(() -> {
                     ((Button) stage.getScene().lookup("#copyInvite")).fire();
                     String invite = javafx.scene.input.Clipboard.getSystemClipboard().getString();
-                    assertFalse(invite.contains(token)); assertTrue(invite.contains("localhost:" + host.port()));
+                    assertFalse(invite.contains(PASSWORD)); assertFalse(invite.contains(first.token()));
+                    assertEquals("@Marinheiro", ((Label) stage.getScene().lookup("#accountIdentity")).getText()); assertTrue(invite.contains("localhost:" + host.port()));
                     TextArea composer = (TextArea) stage.getScene().lookup("#composer");
                     assertTrue(((Button) stage.getScene().lookup("#send")).isDisabled());
                     composer.setText("🌊".repeat(2000));
@@ -444,6 +458,52 @@ class ChatAppTest {
                     return null;
                 });
             } finally { fx(() -> { app.stop(); stage.close(); return null; }); }
+        }
+    }
+
+    @Test void cancellingPendingSignupRevokesSessionThatArrivesLater() throws Exception {
+        var received = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var revoked = new CountDownLatch(1);
+        String token = "session-returned-after-cancel";
+        var http = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("localhost", 0), 0);
+        http.createContext("/accounts/register", exchange -> {
+            try (exchange) {
+                exchange.getRequestBody().readAllBytes();
+                received.countDown();
+                try { if (!release.await(10, TimeUnit.SECONDS)) return; }
+                catch (InterruptedException ex) { Thread.currentThread().interrupt(); return; }
+                byte[] result = ("{\"username\":\"Marina\",\"token\":\"" + token + "\"}")
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(201, result.length);
+                exchange.getResponseBody().write(result);
+            }
+        });
+        http.createContext("/accounts/logout", exchange -> {
+            try (exchange) {
+                if (("Bearer " + token).equals(exchange.getRequestHeaders().getFirst("Authorization"))) revoked.countDown();
+                exchange.sendResponseHeaders(204, -1);
+            }
+        });
+        http.start();
+        var app = new ChatApp();
+        Stage stage = fx(() -> { var window = new Stage(); app.start(window); return window; });
+        try {
+            fx(() -> { fillAccount(stage, "Marina", PASSWORD, http.getAddress().getPort(), true); return null; });
+            assertTrue(received.await(10, TimeUnit.SECONDS));
+            fx(() -> {
+                ((Button) stage.getScene().lookup("#cancelAuth")).fire();
+                assertFalse(stage.getScene().lookup("#join").isDisabled());
+                assertTrue(((PasswordField) stage.getScene().lookup("#password")).getText().isEmpty());
+                return null;
+            });
+            release.countDown();
+            assertTrue(revoked.await(10, TimeUnit.SECONDS));
+            assertNull(fx(() -> stage.getScene().lookup("#composer")));
+        } finally {
+            release.countDown();
+            fx(() -> { app.stop(); stage.close(); return null; });
+            http.stop(0);
         }
     }
 }

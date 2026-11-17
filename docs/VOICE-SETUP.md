@@ -10,7 +10,7 @@ No servidor deste projeto, o proprietário concluiu a ativação da Cloudflare e
 
 1. O proprietário cria uma [conta Cloudflare](https://dash.cloudflare.com/sign-up), confirma seu e-mail e acessa o painel.
 2. Em **Realtime → TURN Server**, ativa o serviço e cria uma chave TURN. Na conta consultada, a Cloudflare exige cadastrar pagamento, aceitar os termos e autorizar cobrança mensal de excedentes: US$ 0 hoje, franquia de 1.000 GB/mês e US$ 0,05/GB adicional. O proprietário deve concluir pessoalmente esse aceite se decidir usar o serviço. Não é necessário comprar domínio nem mover o DNS do projeto.
-3. No [serviço existente do Render](https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg), abra **Environment** e adicione `TURN_KEY_ID` e `TURN_API_TOKEN` com os valores fornecidos pela Cloudflare. Mantenha `CHAT_ACCESS_TOKEN` intacta. O token é o segredo de geração de credenciais TURN, não uma chave de API global da conta.
+3. No [serviço existente do Render](https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg), abra **Environment** e adicione `TURN_KEY_ID` e `TURN_API_TOKEN` com os valores fornecidos pela Cloudflare. O banco usado para as contas do Wavecove 1.7 é configurado separadamente em `DATABASE_URL`. O token é o segredo de geração de credenciais TURN, não uma chave de API global da conta.
 4. Salve e publique o servidor atualizado. As publicações automáticas estão desativadas neste projeto. As duas pessoas devem reabrir/entrar no cliente 1.4.
 5. Selecione um participante no mesmo canal, ligue e aceite na outra máquina. Teste em duas redes diferentes, falando e ouvindo em ambos os sentidos; teste silenciar, recusar, encerrar e queda de conexão.
 

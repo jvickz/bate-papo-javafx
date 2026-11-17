@@ -23,11 +23,11 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 public final class ChatApp extends Application {
     private static final String APP_NAME = "Wavecove";
-    private static final String TAGLINE = "Outras margens. A mesma conversa.";
     private static final Image APP_ICON = new Image(Objects.requireNonNull(
             ChatApp.class.getResource("/wavecove.png")).toExternalForm());
 
@@ -35,11 +35,25 @@ public final class ChatApp extends Application {
     private final Label status = label("Desconectado", "pill");
     private final Label error = label("", "error");
     private final Label hint = label("", "error");
-    private final TextField nickname = new TextField();
+    private final TextField username = new TextField();
     private final TextField server = new TextField();
-    private final PasswordField accessCode = new PasswordField();
+    private final PasswordField password = new PasswordField();
+    private final AccountAccess accounts = new AccountAccess();
+    private final ToggleButton loginTab = new ToggleButton("Entrar");
+    private final ToggleButton registerTab = new ToggleButton("Criar conta");
+    private final Label formTitle = label("", "form-title");
+    private final Label passwordHelp = label("Use de 12 a 128 caracteres.", "field-help");
+    private final Label identity = label("", "muted");
+    private final ToggleButton authMotion = new ToggleButton();
+    private HBox roomHeader;
+    private TitledPane advanced;
+    private boolean registering;
+    private String accountAddress;
+    private AccountAccess.Session session;
+    private CompletableFuture<AccountAccess.Session> pendingAccount;
+    private CompletableFuture<Void> abandonedRequests = CompletableFuture.completedFuture(null);
     private final Button join = new Button("Entrar");
-    private final Button cancel = new Button("Cancelar conexão");
+    private final Button cancel = new Button("Cancelar entrada");
     private final TextArea composer = new TextArea();
     private final Button send = new Button("Enviar  →");
     private final Button attach = new Button("Anexar");
@@ -79,7 +93,7 @@ public final class ChatApp extends Application {
     private final VoicePanel voicePanel = new VoicePanel();
     private final VoiceController voice;
     private VBox sidebar;
-    private VBox heading;
+
 
     public ChatApp() {
         this(new Supplier<>() {
@@ -112,8 +126,8 @@ public final class ChatApp extends Application {
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
-        nickname.setId("nickname"); nickname.setPromptText("Como você quer ser chamado?");
-        nickname.setText(suggestNickname());
+        username.setId("username"); username.setPromptText("Seu nome de usuário");
+        username.setOnAction(e -> password.requestFocus());
         server.setId("server"); server.setPromptText("https://seu-servidor.onrender.com");
         server.setText(System.getenv().getOrDefault("BATEPAPO_SERVER", "https://bate-papo-java.onrender.com"));
         server.textProperty().addListener((o, old, next) -> { ++checkEpoch; checkServer.setDisable(false); checkResult.setText("Endereço alterado. Verifique novamente se precisar."); });
@@ -123,11 +137,21 @@ public final class ChatApp extends Application {
         copyInvite.setOnAction(e -> copyInvite());
         counter.setId("messageCounter");
         composer.textProperty().addListener((o, old, next) -> refreshSend());
-        accessCode.setId("accessCode"); accessCode.setPromptText("Código compartilhado com você");
+        password.setId("password"); password.setPromptText("Sua senha");
+        error.setId("authError");
         error.managedProperty().bind(error.textProperty().isNotEmpty());
         join.setId("join"); join.getStyleClass().add("primary"); join.setMaxWidth(Double.MAX_VALUE);
-        join.setOnAction(e -> enter()); accessCode.setOnAction(e -> enter());
-        cancel.setOnAction(e -> leave()); cancel.setVisible(false); cancel.setManaged(false);
+        join.setOnAction(e -> enter()); password.setOnAction(e -> enter());
+        cancel.setId("cancelAuth"); cancel.getStyleClass().add("secondary-button");
+        cancel.setOnAction(e -> {
+            boolean mode = registering;
+            String name = username.getText();
+            leave();
+            username.setText(name);
+            setAccountMode(mode);
+            if (mode) error.setText("Entrada cancelada. Se sua conta já foi criada, use Entrar.");
+        });
+        cancel.setVisible(false); cancel.setManaged(false);
         composer.setId("composer"); composer.setPromptText("Escreva uma mensagem…");
         composer.setWrapText(true); composer.setPrefRowCount(2);
         composer.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ENTER && !e.isShiftDown()) { e.consume(); sendMessage(); } });
@@ -155,25 +179,32 @@ public final class ChatApp extends Application {
         var shell = new BorderPane(); shell.setLeft(sidebar); shell.setCenter(content);
         shell.getStyleClass().add("terminal-shell");
         var root = new StackPane(backdrop, shell);
-        motion.setId("motionToggle"); motion.getStyleClass().add("motion-toggle");
-        motion.setAccessibleText("Pausar animação do fundo");
-        motion.setOnAction(e -> {
-            backdrop.setPaused(motion.isSelected());
-            motion.setText(motion.isSelected() ? "EFEITOS: OFF" : "EFEITOS: ON");
-            motion.setAccessibleText(motion.isSelected() ? "Retomar animação do fundo" : "Pausar animação do fundo");
-        });
+        motion.setId("motionToggle");
+        authMotion.setId("authMotion");
+        authMotion.selectedProperty().bindBidirectional(motion.selectedProperty());
+        motion.setSelected(!WindowsTitleBar.animationsEnabled());
+        for (var toggle : List.of(motion, authMotion)) {
+            toggle.getStyleClass().add("motion-toggle");
+        }
+        motion.selectedProperty().addListener((o, before, paused) -> updateMotionPreference());
+        updateMotionPreference();
+        StackPane.setAlignment(authMotion, Pos.TOP_RIGHT);
+        StackPane.setMargin(authMotion, new Insets(20, 24, 0, 0));
+        root.getChildren().add(authMotion);
         channelHeading.setId("channelHeading"); channelHeading.setMaxWidth(300); channelHeading.setMinWidth(0);
         conversationInfo.setId("conversationInfo"); conversationInfo.setText("Entre e convide alguém para conversar");
-        heading = new VBox(4, channelHeading, conversationInfo); heading.setMinWidth(0);
+        var heading = new VBox(4, channelHeading, conversationInfo); heading.setMinWidth(0);
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        var header = new HBox(12, heading, spacer, motion, status); header.setAlignment(Pos.CENTER_LEFT); header.getStyleClass().add("header");
-        content.setTop(header); showLogin();
+        roomHeader = new HBox(12, heading, spacer, motion, status); roomHeader.setAlignment(Pos.CENTER_LEFT); roomHeader.getStyleClass().add("header");
+        buildAccountScreen(); showLogin();
         var scene = new Scene(root, 1080, 760); scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/chat.css")).toExternalForm());
         stage.getIcons().add(APP_ICON);
         stage.setScene(scene); stage.setTitle(APP_NAME); stage.setMinWidth(900); stage.setMinHeight(720);
         stage.iconifiedProperty().addListener((o, before, after) -> refreshMotion());
         stage.showingProperty().addListener((o, before, after) -> refreshMotion());
         stage.setOnCloseRequest(e -> stop()); stage.show();
+        WindowsTitleBar.apply(stage);
+        username.requestFocus();
     }
     private static HBox brand(String style, int iconSize) {
         var icon = new ImageView(APP_ICON);
@@ -186,14 +217,15 @@ public final class ChatApp extends Application {
     }
 
     private void showRoomControls(boolean visible) {
-        for (var control : List.of(sidebar, heading, motion)) {
-            control.setVisible(visible);
-            control.setManaged(visible);
-        }
+        sidebar.setVisible(visible);
+        sidebar.setManaged(visible);
+        authMotion.setVisible(!visible);
+        authMotion.setManaged(!visible);
+        content.setTop(visible ? roomHeader : null);
     }
 
     private VBox sidebar() {
-        var subtitle = label(TAGLINE, "muted"); subtitle.setWrapText(true);
+        identity.setId("accountIdentity"); identity.setWrapText(true);
         channels.setId("channels"); channels.getStyleClass().add("channel-list"); channels.setFixedCellSize(28);
         channels.setPrefHeight(116); channels.setMinHeight(68); channels.setDisable(true);
         channels.setPlaceholder(label("Entre para ver canais", "muted"));
@@ -219,10 +251,10 @@ public final class ChatApp extends Application {
         var createRow = new HBox(6, channelName, createChannel); createRow.getStyleClass().add("channel-create-row"); HBox.setHgrow(channelName, Priority.ALWAYS);
         var spacer = new Region(); VBox.setVgrow(spacer, Priority.ALWAYS);
         participants.setPrefHeight(112); participants.setMinHeight(55);
-        var another = new Button("OUTRA JANELA"); another.setId("openTestWindow"); another.getStyleClass().add("secondary-button"); another.setMaxWidth(Double.MAX_VALUE);
+        var another = new Button("Outra janela"); another.setId("openTestWindow"); another.getStyleClass().add("secondary-button"); another.setMaxWidth(Double.MAX_VALUE);
         another.setTooltip(new Tooltip("Abrir uma segunda sessão para testar uma conversa"));
         another.setOnAction(e -> { var other = new ChatApp(); other.start(new Stage()); other.server.setText(server.getText()); });
-        var box = new VBox(12, brand("brand", 24), subtitle, new Separator(), label("CANAIS", "eyebrow"), channels, createRow,
+        var box = new VBox(12, brand("brand", 24), identity, new Separator(), label("CANAIS", "eyebrow"), channels, createRow,
                 peopleCount, participants, spacer, copyInvite, another);
         box.getStyleClass().add("sidebar"); box.setPrefWidth(224); return box;
     }
@@ -250,77 +282,189 @@ public final class ChatApp extends Application {
         }
         currentChannel = next; channelHeading.setText("#" + next); channelHeading.setTooltip(new Tooltip("#" + next));
         selectCurrentChannel();
-        if (inRoom) stage.setTitle(APP_NAME + " — " + myName + " · #" + currentChannel);
     }
-    private void showLogin() {
-        refreshMotion();
-        showRoomControls(false);
-        content.setBottom(null);
-        var suggest = new Button("Gerar outro"); suggest.setId("suggestNickname"); suggest.getStyleClass().add("secondary-button");
-        suggest.disableProperty().bind(nickname.disabledProperty());
-        suggest.setOnAction(e -> { nickname.setText(suggestNickname()); error.setText(""); nickname.requestFocus(); });
-        var nicknameRow = new HBox(8, nickname, suggest); HBox.setHgrow(nickname, Priority.ALWAYS); nickname.setMinWidth(0);
-        var nicknameLabel = label("Apelido", "field-label"); nicknameLabel.setLabelFor(nickname);
-        var serverOptions = new VBox(10, field("ENDEREÇO DO SERVIDOR", server), checkServer, checkResult);
-        var advanced = new TitledPane("Servidor e diagnóstico de conexão", serverOptions); advanced.setId("serverOptions");
-        advanced.setExpanded(false); advanced.setAnimated(false);
+    private ScrollPane accountScreen;
+
+    private void buildAccountScreen() {
+        loginTab.setId("loginTab");
+        registerTab.setId("registerTab");
+        var modes = new ToggleGroup();
+        for (var tab : List.of(loginTab, registerTab)) {
+            tab.setToggleGroup(modes);
+            tab.getStyleClass().add("account-tab");
+            tab.setPrefWidth(150);
+            tab.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(tab, Priority.ALWAYS);
+            tab.setOnAction(e -> {
+                setAccountMode(tab == registerTab);
+                username.requestFocus();
+            });
+        }
+        var tabs = new HBox(4, loginTab, registerTab);
+        tabs.getStyleClass().add("account-tabs");
+        var connectionSettings = new VBox(10, field("Endereço do servidor", server), checkServer, checkResult);
+        advanced = new TitledPane("Configurações do servidor", connectionSettings);
+        advanced.setId("serverOptions");
+        advanced.setExpanded(false);
+        advanced.setAnimated(false);
         error.setWrapText(true);
-        var card = new VBox(12, brand("hero", 40), label(TAGLINE, "muted"),
-                new VBox(nicknameLabel, nicknameRow), field("Código de acesso", accessCode),
-                error, join, cancel, advanced);
-        card.getStyleClass().add("card"); card.setMaxWidth(394); card.setMaxHeight(Region.USE_PREF_SIZE);
+        passwordHelp.setWrapText(true);
+        var passwordRow = field("Senha", password);
+        passwordRow.getChildren().add(passwordHelp);
+        var card = new VBox(14, brand("brand", 32), tabs, formTitle,
+                field("Nome de usuário", username), passwordRow, error, join, cancel, advanced);
+        card.getStyleClass().add("card");
+        card.setMaxWidth(390);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
         card.setMinHeight(Region.USE_PREF_SIZE);
         var center = new StackPane(card);
         center.setAlignment(Pos.CENTER_LEFT);
-        center.setPadding(new Insets(24, 36, 24, 60));
+        center.setPadding(new Insets(62, 32, 42, 54));
         center.setMinHeight(Region.USE_PREF_SIZE);
-        var scroll = new ScrollPane(center); scroll.setId("loginScroll"); scroll.getStyleClass().add("login-scroll");
-        scroll.setFitToWidth(true); scroll.setFitToHeight(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        content.setCenter(scroll);
-        join.setDisable(false); nickname.setDisable(false); server.setDisable(false); accessCode.setDisable(false);
-        nickname.requestFocus();
+        accountScreen = new ScrollPane(center);
+        accountScreen.setId("loginScroll");
+        accountScreen.getStyleClass().add("login-scroll");
+        accountScreen.setFitToWidth(true);
+        accountScreen.setFitToHeight(true);
+        accountScreen.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     }
+
+    private void setAccountMode(boolean create) {
+        if (registering != create) {
+            password.clear();
+            error.setText("");
+        }
+        registering = create;
+        (create ? registerTab : loginTab).setSelected(true);
+        formTitle.setText(create ? "Crie sua conta" : "Entre na sua conta");
+        passwordHelp.setVisible(create);
+        passwordHelp.setManaged(create);
+        username.setPromptText(create ? "3–24 letras, números ou _" : "Seu nome de usuário");
+        join.setText(create ? "Criar conta" : "Entrar");
+        backdrop.setView(create ? PixelBackdrop.View.REGISTER : PixelBackdrop.View.LOGIN);
+    }
+
+    private void showLogin() {
+        showRoomControls(false);
+        content.setBottom(null);
+        content.setCenter(accountScreen);
+        setAccountMode(registering);
+        setAuthBusy(false);
+        refreshMotion();
+        username.requestFocus();
+    }
+
+    private void setAuthBusy(boolean busy) {
+        for (var control : List.of(join, username, password, advanced, loginTab, registerTab)) control.setDisable(busy);
+        cancel.setManaged(busy);
+        cancel.setVisible(busy);
+        join.setText(busy ? (registering ? "Criando conta…" : "Entrando…") : (registering ? "Criar conta" : "Entrar"));
+    }
+
     private void enter() {
         if (join.isDisabled()) return;
+        String name = username.getText().strip();
+        String secret = password.getText();
+        if (!name.matches("[a-zA-Z0-9_]{3,24}")) {
+            error.setText("Use de 3 a 24 letras sem acento, números ou _ no nome de usuário.");
+            username.requestFocus();
+            return;
+        }
+        int length = secret.codePointCount(0, secret.length());
+        if (secret.isBlank() || length > 128 || (registering && length < 12)) {
+            error.setText(registering ? "Escolha uma senha de 12 a 128 caracteres." : "Digite sua senha.");
+            password.requestFocus();
+            return;
+        }
+        String address = server.getText().strip();
         try {
-            myName = Protocol.validateName(nickname.getText()); Protocol.serverUri(server.getText());
-            if (accessCode.getText().isBlank()) throw new IllegalArgumentException("Informe o código de acesso da sala.");
-            error.setText(""); hint.setText(""); history.clear(); channelHistory.clear(); drafts.clear();
-            composer.clear(); currentChannel = "geral"; channelHeading.setText("#geral");
-            participants.getItems().clear(); updatingChannels = true; channels.getItems().clear(); updatingChannels = false;
-            jumpToLatest();
-            if (connection != null) connection.close();
-            long current = ++epoch;
-            connection = new ChatConnection(e -> Platform.runLater(() -> { if (current == epoch) onEvent(e); }),
-                    s -> Platform.runLater(() -> { if (current == epoch) onState(s); }));
-            connection.connect(server.getText(), myName, accessCode.getText());
-            join.setDisable(true); nickname.setDisable(true); server.setDisable(true); accessCode.setDisable(true);
-            cancel.setManaged(true); cancel.setVisible(true);
-        } catch (IllegalArgumentException ex) { error.setText(ex.getMessage()); }
+            Protocol.serverUri(address);
+            var request = accounts.authenticate(address, name, secret, registering);
+            accountAddress = address;
+            pendingAccount = request;
+            error.setText("");
+            password.clear();
+            setAuthBusy(true);
+            request.whenComplete((result, failure) -> Platform.runLater(() -> {
+                if (request != pendingAccount) return;
+                pendingAccount = null;
+                if (failure != null) {
+                    var cause = failure instanceof CompletionException ? failure.getCause() : failure;
+                    error.setText(cause instanceof IllegalArgumentException || cause instanceof IllegalStateException
+                            ? cause.getMessage() : "Não foi possível acessar o servidor. Confira a conexão e tente novamente.");
+                    setAuthBusy(false);
+                    password.requestFocus();
+                    return;
+                }
+                session = result;
+                myName = result.username();
+                identity.setText("@" + myName);
+                long current = ++epoch;
+                connection = new ChatConnection(e -> Platform.runLater(() -> { if (current == epoch) onEvent(e); }),
+                        s -> Platform.runLater(() -> { if (current == epoch) onState(s); }));
+                try {
+                    connection.connect(address, myName, result.token());
+                } catch (IllegalArgumentException | IllegalStateException ex) {
+                    leave();
+                    error.setText(ex.getMessage());
+                }
+            }));
+        } catch (IllegalArgumentException ex) {
+            advanced.setExpanded(true);
+            error.setText(ex.getMessage());
+            server.requestFocus();
+        }
     }
+
+    private void revokeAccount() {
+        if (pendingAccount != null) {
+            // A successful HTTP response can arrive after cancellation, including during shutdown.
+            String address = accountAddress;
+            var cleanup = pendingAccount.handle((result, failure) -> {
+                if (result != null) accounts.logout(address, result.token());
+                return (Void) null;
+            });
+            abandonedRequests = CompletableFuture.allOf(abandonedRequests, cleanup);
+            pendingAccount = null;
+        }
+        if (session != null) {
+            accounts.logout(accountAddress, session.token());
+            session = null;
+        }
+        accountAddress = null;
+    }
+
     private void showChat() {
-        inRoom = true; cancel.setVisible(false); cancel.setManaged(false); accessCode.clear();
+        inRoom = true; cancel.setVisible(false); cancel.setManaged(false);
+        backdrop.setView(PixelBackdrop.View.CHAT);
         showRoomControls(true);
         refreshMotion();
         var feed = new BorderPane(messages); feed.setBottom(newMessages); BorderPane.setAlignment(newMessages, Pos.CENTER);
         content.setCenter(feed); Platform.runLater(this::watchScroll);
         var row = new HBox(12, attach, composer, send); row.setAlignment(Pos.CENTER); HBox.setHgrow(composer, Priority.ALWAYS);
-        var leave = new Button("Sair da sala"); leave.setOnAction(e -> leave());
+        var leave = new Button("Sair da conta"); leave.setId("signOut"); leave.getStyleClass().add("secondary-button"); leave.setOnAction(e -> leave());
         var tip = label("Enter envia · Shift+Enter quebra a linha", "muted");
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         var footer = new HBox(10, tip, spacer, counter, leave); footer.setAlignment(Pos.CENTER_LEFT);
         hint.setWrapText(true);
         var bottom = new VBox(8, voicePanel, row, hint, footer); bottom.getStyleClass().add("composer"); content.setBottom(bottom);
-        stage.setTitle(APP_NAME + " — " + myName + " · #" + currentChannel); composer.requestFocus();
+        composer.requestFocus();
     }
     private void leave() {
         voice.connection(false, false);
         attachmentsReady = transferring = false;
         ++epoch; if (connection != null) { connection.close(); connection = null; }
-        inRoom = false; history.clear(); participants.getItems().clear(); composer.clear(); accessCode.clear(); error.setText("");
-        updatingChannels = true; channels.getItems().clear(); updatingChannels = false; confirmChannel("geral");
-        channelHistory.clear(); drafts.clear(); history.clear(); composer.clear(); conversationInfo.setText("Entre e convide alguém para conversar");
-        cancel.setVisible(false); cancel.setManaged(false); onState("disconnected"); stage.setTitle(APP_NAME);
+        revokeAccount();
+        inRoom = false; registering = false; myName = null;
+        identity.setText(""); username.clear(); password.clear(); error.setText(""); hint.setText("");
+        channelHistory.clear(); drafts.clear(); history.clear(); composer.clear(); channelName.clear();
+        participants.getItems().clear();
+        updatingChannels = true; channels.getItems().clear(); updatingChannels = false;
+        currentChannel = "geral"; channelHeading.setText("#geral"); channelHeading.setTooltip(null);
+        jumpToLatest();
+        advanced.setExpanded(false);
+        conversationInfo.setText("");
+        onState("disconnected");
     }
     private void onState(String state) {
         online = state.equals("connected");
@@ -395,11 +539,8 @@ public final class ChatApp extends Application {
                 }
                 if (inRoom) hint.setText(e.text()); else error.setText(e.text());
                 if (Set.of("auth", "name", "full", "rate").contains(Objects.toString(e.id(), ""))) {
-                    voice.connection(false, false);
-                    inRoom = false; error.setText(e.text());
-                    if (!"name".equals(e.id())) accessCode.clear();
-                    else error.setText(e.text() + " Clique em Gerar outro e tente novamente; o código foi mantido.");
-                    showLogin();
+                    leave();
+                    error.setText(e.text());
                 }
             }
             default -> { }
@@ -504,8 +645,20 @@ public final class ChatApp extends Application {
     private static VBox field(String title, Control field) {
         var label = label(title, "field-label"); label.setLabelFor(field); return new VBox(0, label, field);
     }
-    private void refreshMotion() { backdrop.setActive(inRoom && online && stage != null && stage.isShowing() && !stage.isIconified()); }
+    private void updateMotionPreference() {
+        boolean paused = motion.isSelected();
+        backdrop.setPaused(paused);
+        for (var toggle : List.of(authMotion, motion)) {
+            toggle.setText(paused ? "Retomar animação" : "Pausar animação");
+            toggle.setAccessibleText(toggle.getText());
+        }
+    }
+
+    private void refreshMotion() {
+        backdrop.setActive(!stopped && (!inRoom || online) && stage != null && stage.isShowing() && !stage.isIconified());
+    }
     @Override public void stop() {
+        if (stopped) return;
         stopped = true;
         ++epoch;
         ++checkEpoch;
@@ -513,7 +666,9 @@ public final class ChatApp extends Application {
         serverCheck.close();
         backdrop.close();
         if (connection != null) connection.close();
-        channelHistory.clear(); drafts.clear(); history.clear(); accessCode.clear();
+        revokeAccount();
+        abandonedRequests.whenComplete((unused, failure) -> accounts.close());
+        channelHistory.clear(); drafts.clear(); history.clear(); password.clear();
     }
     private final class MessageCell extends ListCell<Line> {
         @Override protected void updateItem(Line line, boolean empty) {
@@ -524,9 +679,12 @@ public final class ChatApp extends Application {
             var text = label(line.text(), "message-text"); text.setWrapText(true); text.setMinWidth(0);
             text.maxWidthProperty().bind(messages.widthProperty().subtract(140).multiply(0.9));
             String time = "";
-            try { if (line.time() != null) time = DateTimeFormatter.ofPattern("HH:mm").format(Instant.parse(line.time()).atZone(ZoneId.systemDefault())) + " · "; }
+            try { if (line.time() != null) time = DateTimeFormatter.ofPattern("HH:mm").format(Instant.parse(line.time()).atZone(ZoneId.systemDefault())); }
             catch (DateTimeException ignored) { }
-            var bubble = new VBox(5, label(own ? "Você" : line.name(), "sender"), text, label(time + Objects.toString(line.delivery(), ""), "message-meta"));
+            String delivery = Objects.toString(line.delivery(), "");
+            String meta = time.isEmpty() || delivery.isEmpty() ? time + delivery : time + " · " + delivery;
+            var bubble = new VBox(5, label(own ? "Você" : line.name(), "sender"), text);
+            if (!meta.isEmpty()) bubble.getChildren().add(label(meta, "message-meta"));
             if (line.attachment()) {
                 Attachment kind = Attachment.forName(line.text());
                 var actions = new HBox(8);
@@ -565,7 +723,6 @@ public final class ChatApp extends Application {
         }
     }
 
-    private static String suggestNickname() { return "Marujo-" + UUID.randomUUID().toString().substring(0, 6); }
     private void refreshSend() {
         String text = composer.getText(); int count = text.codePointCount(0, text.length());
         counter.setText(count + " / 2000"); counter.getStyleClass().remove("invalid");
@@ -583,9 +740,9 @@ public final class ChatApp extends Application {
     private void copyInvite() {
         String address = Protocol.serverUri(server.getText()).toString();
         copyText("Vamos conversar no " + APP_NAME + "!\nServidor: " + address + "\nCanal: " + currentChannel
-                + "\nUse um apelido diferente. O código de acesso deve ser compartilhado separadamente."
-                + "\nAbra o aplicativo, entre e selecione #" + currentChannel + ".");
-        hint.setText("Convite copiado com servidor e canal. Compartilhe o código de acesso em particular.");
+                + "\nAbra o Wavecove e entre com sua conta, ou crie uma nesse servidor."
+                + "\nSelecione #" + currentChannel + ".");
+        hint.setText("Convite copiado com o servidor e o canal.");
     }
     private static void copyText(String text) { var content = new ClipboardContent(); content.putString(text); Clipboard.getSystemClipboard().setContent(content); }
     private void recover(String text) {

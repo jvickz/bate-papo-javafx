@@ -3,16 +3,15 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 & "$PSScriptRoot\bootstrap.ps1"
 if (!(Test-Path -LiteralPath "$root\server\target\server-1.0.0.jar")) { & "$PSScriptRoot\maven.ps1" -B -ntp -pl server -am package }
-$oldToken = $env:CHAT_ACCESS_TOKEN
+$oldStore = $env:WAVECOVE_ACCOUNT_FILE
 $oldPort = $env:PORT
 try {
-    if (!$env:CHAT_ACCESS_TOKEN) {
-        $secure = Read-Host 'Código da sala (24 a 128 caracteres)' -AsSecureString
-        $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-        try { $env:CHAT_ACCESS_TOKEN = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
-        finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+    if (!$env:DATABASE_URL -and !$env:WAVECOVE_ACCOUNT_FILE) {
+        $storeDirectory = Join-Path $env:LOCALAPPDATA 'Wavecove\server'
+        New-Item -ItemType Directory -Force -Path $storeDirectory | Out-Null
+        $env:WAVECOVE_ACCOUNT_FILE = Join-Path $storeDirectory 'accounts'
     }
     $env:PORT = "$Port"
     & "$env:LOCALAPPDATA\BatePapo\build-tools\jdk-21.0.13+9\bin\java.exe" -jar "$root\server\target\server-1.0.0.jar"
     if ($LASTEXITCODE -ne 0) { throw 'Servidor encerrado com erro.' }
-} finally { $env:CHAT_ACCESS_TOKEN = $oldToken; $env:PORT = $oldPort }
+} finally { $env:WAVECOVE_ACCOUNT_FILE = $oldStore; $env:PORT = $oldPort }

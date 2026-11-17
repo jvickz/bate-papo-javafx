@@ -11,6 +11,9 @@ import java.util.Random;
 
 /** Decorative night seascape drawn on a fixed pixel grid. All calls belong to the JavaFX thread. */
 final class PixelBackdrop extends Region implements AutoCloseable {
+    enum View { LOGIN, REGISTER, CHAT }
+    private View view = View.LOGIN;
+    private final HarborBackdrop harbor = new HarborBackdrop();
     private static final int PIXEL = 4;
     private static final long FRAME_INTERVAL = 50_000_000L;
 
@@ -143,6 +146,15 @@ final class PixelBackdrop extends Region implements AutoCloseable {
         updateTimer();
     }
 
+    void setView(View next) {
+        if (view == next) return;
+        view = next;
+        phase = 0;
+        draw();
+    }
+
+    View view() { return view; }
+
     void setPaused(boolean value) {
         paused = value;
         updateTimer();
@@ -189,6 +201,10 @@ final class PixelBackdrop extends Region implements AutoCloseable {
         if (width <= 0 || height <= 0) return;
 
         var g = canvas.getGraphicsContext2D();
+        if (view != View.CHAT) {
+            harbor.draw(g, width, height, phase, view == View.REGISTER);
+            return;
+        }
         double horizon = snap(height * 0.43, PIXEL);
         double moonX = snap(width * 0.72, PIXEL);
         drawBands(g, SKY, width, 0, horizon);

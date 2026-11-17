@@ -7,16 +7,13 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.net.ssl.SSLException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.*;
 
 public final class ServerCheck implements AutoCloseable {
@@ -79,7 +76,7 @@ public final class ServerCheck implements AutoCloseable {
             var payload = JSON.readTree(response.body());
             if (payload != null && payload.isObject() && payload.path("status").isTextual()
                     && payload.path("status").textValue().equals("ok")) {
-                return new Result(true, "Servidor disponível. Use o mesmo endereço e código nos dois computadores.");
+                return new Result(true, "Servidor disponível. Entre com sua conta para conversar.");
             }
         } catch (IOException ignored) { }
         return new Result(false, "Esse endereço respondeu, mas não foi identificado como servidor do Wavecove. Confira o endereço e tente novamente.");
@@ -108,37 +105,5 @@ public final class ServerCheck implements AutoCloseable {
         pending.clear();
         timer.shutdownNow();
         client.shutdownNow();
-    }
-
-    /** Reject oversized bodies while receiving them, before allocating the whole response. */
-    private static final class LimitedBody implements HttpResponse.BodySubscriber<byte[]> {
-        private final CompletableFuture<byte[]> body = new CompletableFuture<>();
-        private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        private Flow.Subscription subscription;
-
-        @Override public CompletionStage<byte[]> getBody() { return body; }
-
-        @Override public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
-            subscription.request(1);
-        }
-
-        @Override public void onNext(List<ByteBuffer> buffers) {
-            for (ByteBuffer buffer : buffers) {
-                int remaining = buffer.remaining();
-                if (remaining > MAX_RESPONSE_BYTES - bytes.size()) {
-                    subscription.cancel();
-                    body.completeExceptionally(new IOException("Resposta de saúde excessiva."));
-                    return;
-                }
-                byte[] chunk = new byte[remaining];
-                buffer.get(chunk);
-                bytes.writeBytes(chunk);
-            }
-            subscription.request(1);
-        }
-
-        @Override public void onError(Throwable failure) { body.completeExceptionally(failure); }
-        @Override public void onComplete() { body.complete(bytes.toByteArray()); }
     }
 }

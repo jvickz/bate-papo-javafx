@@ -71,9 +71,43 @@
     -fx-border-radius: 12;
     -fx-background-radius: 12;
     -fx-padding: 26 28;
-    -fx-spacing: 12;
+    -fx-spacing: 14;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 30, 0, 0, 8);
 }
+.account-tabs {
+    -fx-padding: 3;
+    -fx-background-color: #071322;
+    -fx-border-color: #354d60;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.account-tabs .account-tab {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 14px;
+    -fx-padding: 7 12;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-text-fill: #b4c9d0;
+}
+.account-tabs .account-tab:selected { -fx-background-color: #23414b; -fx-text-fill: #d1fff0; }
+.account-tabs .account-tab:hover { -fx-background-color: #203747; }
+.account-tabs .account-tab:focused { -fx-border-color: #a2ebde; -fx-border-width: 1; }
+.form-title { -fx-font-size: 23px; -fx-font-weight: bold; -fx-text-fill: #f0f4f3; }
+.field-help { -fx-font-size: 12px; -fx-text-fill: #aec5cf; -fx-padding: 4 0 0 0; }
+.card .primary { -fx-font-family: "Segoe UI"; -fx-font-size: 15px; -fx-font-weight: bold; -fx-padding: 10 14; }
+.card .primary:focused { -fx-padding: 9 13; }
+.card .titled-pane > .title { -fx-background-radius: 5; -fx-border-radius: 5; }
+.toggle-button.motion-toggle {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 12px;
+    -fx-padding: 6 11;
+    -fx-background-color: #142a39;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+}
+.toggle-button.motion-toggle:focused { -fx-padding: 5 10; }
 .login-scroll, .login-scroll > .viewport {
     -fx-background-color: transparent;
     -fx-background-insets: 0;

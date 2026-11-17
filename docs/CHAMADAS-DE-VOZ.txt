@@ -1,8 +1,6 @@
-WAVECOVE 1.6 — CHAMADA PRIVADA
+WAVECOVE 1.7 — CHAMADA PRIVADA
 
-Os dois participantes precisam usar o Wavecove ou o cliente 1.4, o mesmo servidor,
-o mesmo código de acesso e o mesmo canal. O servidor precisa ter
-o serviço de voz configurado pelo proprietário da sala.
+Os dois participantes precisam usar o Wavecove 1.7, entrar com suas próprias contas e escolher o mesmo canal. O servidor precisa ter o serviço de voz configurado.
 
 1. Na lista de participantes, selecione a outra pessoa e use Ligar.
 2. A outra pessoa verá quem está ligando e poderá aceitar ou recusar.
@@ -21,8 +19,7 @@ de uma chamada por vez. A chamada tem limite de 55 minutos nesta versão;
 após esse tempo é possível ligar novamente.
 
 Se aparecer voz indisponível, o proprietário precisa ativar o TURN.
-O chat de texto continua funcionando. Não adianta alterar o apelido
-ou o código da sala para resolver essa configuração.
+O chat de texto continua funcionando.
 
 Para o proprietário: veja docs/VOICE-SETUP.md no código-fonte.
 As chaves do provedor ficam no servidor; nunca no instalador, no código

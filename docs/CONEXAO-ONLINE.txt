@@ -1,46 +1,24 @@
-WAVECOVE 1.6 — CONEXÃO PELA INTERNET
+WAVECOVE 1.7 — CONEXÃO PELA INTERNET
 
-Instale Wavecove-1.6.0.msi nos dois computadores Windows x64.
+Instale Wavecove-1.7.0.msi nos dois computadores Windows x64.
 Ou extraia Wavecove-Windows-x64.zip inteiro e abra Wavecove.exe.
 Java já está incluído.
 
-Para convidar alguém em outro local:
+1. No primeiro acesso, selecione Criar conta, escolha um usuário e uma senha.
+   Nos próximos acessos, use Entrar. O usuário fica reservado para a conta.
 
-1. Entre no aplicativo e escolha o canal em que vocês vão conversar.
-   Convidar pessoa copia um convite com o endereço do servidor e esse canal.
-   Envie o convite e o MSI ou ZIP à outra pessoa. Compartilhe o código
-   em particular, separadamente: o convite copiado não inclui o código.
+2. A outra pessoa deve instalar a versão 1.7 e criar uma conta própria.
+   Em Convidar pessoa, copie o convite e envie o endereço e o canal.
+   O endereço padrão é https://bate-papo-java.onrender.com. Para outro
+   endereço, abra Configurações do servidor. Cada pessoa guarda sua senha.
 
-2. No outro computador, instale o MSI ou extraia todo o ZIP e abra o programa.
-   O apelido já vem preenchido. É possível editá-lo ou clicar em Gerar outro.
-   Se estiver em uso, Gerar outro permite tentar novamente mantendo o código.
-   Cole o mesmo código de acesso e clique em Entrar.
+3. Entrem no mesmo canal e procurem os dois nomes na lista de participantes.
+   Testem com uma mensagem em cada sentido, uma foto e uma chamada.
+   A conexão gratuita do Render pode demorar cerca de um minuto para acordar.
+   Verificar servidor consulta /health; Entrar verifica a conta e abre o chat.
 
-3. O endereço padrão é https://bate-papo-java.onrender.com.
-   Se o convite indicar outro endereço, expanda
-   Servidor e diagnóstico de conexão na tela de entrada e substitua-o.
-   Os dois computadores precisam usar o MESMO servidor, o MESMO código
-   e apelidos diferentes. Não use localhost para conversar entre locais.
-
-4. Depois de entrar, selecione o MESMO canal indicado no convite.
-   Para criar um canal, use novo-canal e + na lateral.
-   Todos que possuem o código podem acessar todos os canais.
-   Confiram os dois apelidos na lista de participantes e enviem uma mensagem
-   em cada sentido, um de cada computador e de cada rede.
-
-Onde o proprietário encontra o código:
-https://dashboard.render.com/web/srv-dbu51hrm8hqs73e50qgg
-Abra Environment e copie o valor de CHAT_ACCESS_TOKEN.
-Compartilhe o código em particular com a outra pessoa.
-Quem recebeu o convite deve pedir esse código ao proprietário da sala.
-
-Se não conseguir entrar:
-  Expanda Servidor e diagnóstico de conexão e use Verificar servidor.
-  A verificação consulta /health por HTTP/HTTPS. Ela não testa o código
-  de acesso nem a conexão WebSocket da conversa.
-  Se o serviço gratuito estiver iniciando, aguarde um minuto e tente de novo.
-  Com código incorreto, copie novamente o código recebido do proprietário.
-  Com apelido em uso, clique em Gerar outro; o código digitado é mantido.
+Se o nome já foi cadastrado, entre usando a senha original ou cadastre um
+nome diferente. Se o app pedir código da sala, confira a versão instalada.
 
 OUTRA JANELA permite testar com duas sessões neste computador.
 Esse teste não substitui a conversa entre os dois computadores em redes distintas.
