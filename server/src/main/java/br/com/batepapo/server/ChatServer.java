@@ -43,7 +43,7 @@ public final class ChatServer implements AutoCloseable {
                 factory.setIdleTimeout(Duration.ofSeconds(60));
             });
             config.routes.get("/health", ctx -> ctx.contentType("application/json").result(store == null
-                    ? "{\"status\":\"ok\"}" : "{\"status\":\"ok\",\"directMessages\":true}"));
+                    ? "{\"status\":\"ok\"}" : "{\"status\":\"ok\",\"directMessages\":true,\"profileAvatars\":true}"));
             if (store != null) {
                 var direct = new DirectRoutes(sessions, new DirectStore(store));
                 config.routes.get("/direct/threads", direct::threads);
@@ -54,6 +54,10 @@ public final class ChatServer implements AutoCloseable {
                 config.routes.post("/accounts/register", ctx -> accounts.authenticate(ctx, true));
                 config.routes.post("/accounts/login", ctx -> accounts.authenticate(ctx, false));
                 config.routes.post("/accounts/logout", accounts::logout);
+                var avatars = new AvatarRoutes(store, sessions);
+                config.routes.get("/profiles/{name}/avatar", avatars::get);
+                config.routes.put("/profile/avatar", avatars::put);
+                config.routes.delete("/profile/avatar", avatars::remove);
             }
             config.routes.post(Attachment.PATH, attachments::upload);
             config.routes.get(Attachment.PATH + "/{id}", attachments::download);

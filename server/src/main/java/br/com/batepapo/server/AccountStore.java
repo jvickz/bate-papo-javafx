@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.NoSuchElementException;
 import java.util.Properties;
 
 /** The normalized primary key makes concurrent registrations atomic on both supported databases. */
@@ -39,6 +40,7 @@ final class AccountStore {
                       iterations INTEGER NOT NULL
                     )
                     """);
+            statement.executeUpdate("ALTER TABLE wavecove.accounts ADD COLUMN IF NOT EXISTS avatar_png BYTEA");
         } catch (SQLException ex) {
             // Driver messages can contain connection details. Keep those out of startup logs.
             throw new IllegalArgumentException("Banco de contas indisponível. Confira a conexão e as permissões.");
@@ -104,6 +106,26 @@ final class AccountStore {
     }
 
     Connection open() throws SQLException { return DriverManager.getConnection(url, properties); }
+
+    byte[] avatar(String username) throws SQLException {
+        try (var connection = open(); var sql = connection.prepareStatement(
+                "SELECT avatar_png FROM wavecove.accounts WHERE username_key = ?")) {
+            sql.setString(1, username.toLowerCase(Locale.ROOT));
+            try (var result = sql.executeQuery()) {
+                if (!result.next()) throw new NoSuchElementException();
+                return result.getBytes(1);
+            }
+        }
+    }
+
+    void setAvatar(String owner, byte[] photo) throws SQLException {
+        try (var connection = open(); var sql = connection.prepareStatement(
+                "UPDATE wavecove.accounts SET avatar_png = ? WHERE username_key = ?")) {
+            sql.setBytes(1, photo);
+            sql.setString(2, owner.toLowerCase(Locale.ROOT));
+            if (sql.executeUpdate() != 1) throw new NoSuchElementException();
+        }
+    }
 
     boolean register(String username, char[] password) throws SQLException {
         byte[] salt = new byte[16];
