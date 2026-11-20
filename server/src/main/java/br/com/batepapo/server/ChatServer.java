@@ -42,8 +42,14 @@ public final class ChatServer implements AutoCloseable {
                 factory.setMaxBinaryMessageSize(1);
                 factory.setIdleTimeout(Duration.ofSeconds(60));
             });
-            config.routes.get("/health", ctx -> ctx.contentType("application/json").result("{\"status\":\"ok\"}"));
+            config.routes.get("/health", ctx -> ctx.contentType("application/json").result(store == null
+                    ? "{\"status\":\"ok\"}" : "{\"status\":\"ok\",\"directMessages\":true}"));
             if (store != null) {
+                var direct = new DirectRoutes(sessions, new DirectStore(store));
+                config.routes.get("/direct/threads", direct::threads);
+                config.routes.get("/direct/messages/{peer}", direct::messages);
+                config.routes.post("/direct/messages/{peer}", direct::send);
+                config.routes.post("/direct/read/{peer}", direct::read);
                 var accounts = new AccountRoutes(store, sessions, room);
                 config.routes.post("/accounts/register", ctx -> accounts.authenticate(ctx, true));
                 config.routes.post("/accounts/login", ctx -> accounts.authenticate(ctx, false));

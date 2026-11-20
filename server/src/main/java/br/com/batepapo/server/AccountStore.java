@@ -103,7 +103,7 @@ final class AccountStore {
         return URLDecoder.decode(raw.replace("+", "%2B"), StandardCharsets.UTF_8);
     }
 
-    private Connection open() throws SQLException { return DriverManager.getConnection(url, properties); }
+    Connection open() throws SQLException { return DriverManager.getConnection(url, properties); }
 
     boolean register(String username, char[] password) throws SQLException {
         byte[] salt = new byte[16];
