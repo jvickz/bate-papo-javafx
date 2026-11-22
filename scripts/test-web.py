@@ -164,6 +164,23 @@ def exercise(browser, url, screenshots):
             expect(page.locator("#auth-submit")).to_be_enabled()
             no_horizontal_overflow(page)
         capture(a, screenshots, "web-entrada.png")
+        a.set_viewport_size({"width": 1080, "height": 760})
+        a.bring_to_front()
+        a.locator("#register-tab").click()
+        harbor = a.locator("#registration-harbor")
+        expect(harbor).to_be_visible()
+        a.emulate_media(reduced_motion="no-preference")
+        a.wait_for_function(
+            "first => document.querySelector('#registration-harbor').toDataURL() !== first",
+            arg=harbor.evaluate("canvas => canvas.toDataURL()"), timeout=6000)
+        a.emulate_media(reduced_motion="reduce")
+        a.wait_for_timeout(200)
+        still = harbor.evaluate("canvas => canvas.toDataURL()")
+        a.wait_for_timeout(350)
+        assert still == harbor.evaluate("canvas => canvas.toDataURL()"), "Respeitar a redução de movimento."
+        capture(a, screenshots, "web-cadastro-amanhecer.png")
+        a.set_viewport_size({"width": 1320, "height": 830})
+        a.emulate_media(reduced_motion="no-preference")
         password = secrets.token_urlsafe(25)
         account(a, "Marina", password, register=True)
         account(b, "Caio", password, register=True)
@@ -243,12 +260,17 @@ def main():
     parser.add_argument("--jar", type=Path, default=DEFAULT_JAR)
     parser.add_argument("--browser-executable", type=Path)
     parser.add_argument("--screenshots", type=Path)
+    parser.add_argument("--desktop-jar", type=Path, help="Testar também salas anônimas com o cliente Windows.")
     options = parser.parse_args()
     expect.set_options(timeout=15000)
     with local_server(options.jar) as url, sync_playwright() as engine:
         browser = launch_browser(engine.chromium, options.browser_executable)
         try:
             exercise(browser, url, options.screenshots)
+            if options.desktop_jar:
+                from room_interop import exercise_interop
+                exercise_interop(browser, url, options.desktop_jar, java_launcher())
+                print("OK: salas sem conta criadas no navegador e no Windows, mensagens nos dois sentidos e encerramento.")
         finally:
             browser.close()
     print("OK: cadastro, login, presença, canais isolados, envio bidirecional, DMs offline, logout e layout móvel.")

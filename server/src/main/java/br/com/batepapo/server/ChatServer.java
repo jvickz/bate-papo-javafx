@@ -43,7 +43,7 @@ public final class ChatServer implements AutoCloseable {
                     files.directory = "/web";
                     files.headers = java.util.Map.of(
                             "Cache-Control", "no-cache",
-                            "Content-Security-Policy", "default-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+                            "Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
                             "Referrer-Policy", "no-referrer",
                             "X-Content-Type-Options", "nosniff");
                 });

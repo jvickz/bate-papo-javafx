@@ -30,6 +30,16 @@ O servidor desta instalação está em **https://bate-papo-java.onrender.com**, 
 
 O acesso por conta está disponível desde a versão 1.7. Apelidos das versões anteriores eram temporários. A primeira pessoa a cadastrar um nome passa a usá-lo com a própria senha.
 
+## Sala da Cachoeira
+
+Na tela de entrada, escolha **Sala anônima** para conversar por texto sem criar conta. A sala aceita duas pessoas ao mesmo tempo, no navegador ou no Wavecove para Windows que tenha a opção **Sala anônima**. As duas precisam usar o mesmo servidor.
+
+1. Escolha **Criar sala** e mantenha a sala aberta. No navegador, use **Copiar link** para convidar alguém pela web ou **Copiar código para o aplicativo** para enviar o código `WC1`. No Windows, **Copiar convite** fornece um código que também funciona no navegador.
+2. Compartilhe o convite por um canal de confiança. Quem tiver o link ou o código pode ocupar a segunda vaga. Quem receber um link deve abri-lo e clicar em **Entrar na sala**. Quem receber um código deve escolher **Sala anônima → Entrar com convite**, colá-lo e confirmar.
+3. Quando aparecer **2 de 2 na sala**, a conversa está pronta e as mensagens usam criptografia de ponta a ponta. **Encerrar sala**, fechar a janela da sala ou recarregar a página encerra a sessão. Para conversar de novo, crie outro convite.
+
+O link carrega a chave no trecho após `#`. O navegador retira esse trecho da barra de endereço ao abrir o convite. A chave fica nos dispositivos participantes. O servidor recebe o identificador da sala e encaminha os dados criptografados. O histórico fica em memória durante a sessão. O servidor e a hospedagem podem observar IPs e horários de conexão, e cada participante pode guardar uma cópia das mensagens.
+
 ## Criar canais e testar uma conversa
 
 Após entrar, use **novo-canal** e **+** na lateral para criar e entrar em um canal. Clique em um canal da lista para trocar. Nomes têm de 2 a 24 letras minúsculas, números ou hífens (por exemplo `amigos` ou `projeto-java`). Todas as contas conectadas podem ver, criar e entrar nos canais. As chamadas de voz são privadas entre dois participantes.

@@ -21,7 +21,9 @@ class WebClientTest {
             assertTrue(page.body().contains("Wavecove"));
             assertTrue(page.headers().firstValue("Content-Type").orElseThrow().contains("text/html"));
             assertTrue(page.headers().firstValue("Content-Security-Policy").orElseThrow().contains("frame-ancestors 'none'"));
-            for (String asset : List.of("styles.css", "app.js", "direct.css", "direct.js", "waterfall.png", "vt323.ttf", "favicon.png")) {
+            for (String asset : List.of("styles.css", "app.js", "direct.css", "direct.js", "waterfall.png",
+                    "vt323.ttf", "favicon.png", "registration.css", "harbor.js", "room.css", "room.js",
+                    "waterfall-atlas.png", "secret-engine.js", "secret-engine.wasm", "secret-engine-license.txt")) {
                 var response = http.send(HttpRequest.newBuilder(origin.resolve("/" + asset)).build(),
                         HttpResponse.BodyHandlers.ofByteArray());
                 assertEquals(200, response.statusCode(), asset);

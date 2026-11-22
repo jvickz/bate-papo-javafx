@@ -30,6 +30,9 @@
 
   function setMode(create) {
     registering = create;
+    el("auth-view").dataset.mode = create ? "register" : "login";
+    username.placeholder = create ? "3–24 letras, números ou _" : "Seu usuário";
+    if (!create) el("registration-server").open = false;
     for (const [id, active] of [["login-tab", !create], ["register-tab", create]]) {
       el(id).setAttribute("aria-selected", String(active));
       el(id).tabIndex = active ? 0 : -1;
