@@ -17,22 +17,9 @@
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <div id="auth-view" class="auth-shell">
+  <div id="auth-view" class="auth-shell" data-mode="login">
     <canvas id="registration-harbor" aria-hidden="true"></canvas>
-    <header class="masthead">
-      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Wavecove</span></div>
-      <span class="platform"><span aria-hidden="true" class="monitor-icon"></span>Cliente web</span>
-    </header>
-
     <main class="access-layout">
-      <section class="landscape" aria-labelledby="landscape-title">
-        <img class="landscape-art" src="/waterfall.png" alt="" width="416" height="248">
-        <div class="landscape-copy">
-          <h2 id="landscape-title">Canais de conversa<span aria-hidden="true">.</span></h2>
-          <p>Converse em tempo real com quem está no navegador ou no aplicativo para Windows.</p>
-        </div>
-      </section>
-
       <section class="auth-pane" aria-labelledby="auth-title">
         <div class="auth-box">
           <div class="registration-brand brand"><img src="/favicon.png" width="32" height="32" alt=""><span>Wavecove</span></div>
@@ -42,17 +29,14 @@
           </div>
           <div id="auth-panel" role="tabpanel" aria-labelledby="auth-title">
             <h1 id="auth-title">Entre na sua conta</h1>
-            <p id="auth-description" class="intro">Use sua conta do Wavecove para acessar os canais.</p>
             <form id="auth-form" method="post" action="/accounts/login">
               <label for="auth-username">Nome de usuário</label>
               <div class="field-wrap">
-                <span class="field-prefix" aria-hidden="true">@</span>
-                <input id="auth-username" name="username" type="text" placeholder="Seu usuário" required
+                <input id="auth-username" name="username" type="text" placeholder="Seu nome de usuário" required
                        autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="24">
               </div>
               <label for="auth-password">Senha</label>
               <div class="field-wrap password-wrap">
-                <span class="lock-icon" aria-hidden="true"></span>
                 <input id="auth-password" name="password" type="password" placeholder="Sua senha" required autocomplete="current-password">
                 <button type="button" id="password-toggle" class="icon-button" aria-label="Mostrar senha" aria-pressed="false">
                   <span class="eye-icon" aria-hidden="true"></span>
@@ -60,7 +44,7 @@
               </div>
               <p id="auth-help" class="help" hidden>Use de 12 a 128 caracteres.</p>
               <p id="auth-error" class="notice" role="alert"></p>
-              <button class="primary auth-submit" type="submit" id="auth-submit"><span id="auth-submit-label">Entrar</span><span class="action-arrow" aria-hidden="true">→</span></button>
+              <button class="primary auth-submit" type="submit" id="auth-submit"><span id="auth-submit-label">Entrar</span></button>
             </form>
           </div>
           <button type="button" id="open-secret-room" class="quiet-button" aria-haspopup="dialog">Sala anônima</button>

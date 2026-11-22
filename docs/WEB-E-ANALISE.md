@@ -52,4 +52,4 @@ Para incluir as salas anônimas, acrescente `--desktop-jar Wavecove/app/client-1
 
 Essa verificação passou no Edge com o cliente Windows 1.13 sobre o servidor empacotado. O teste conferiu que o texto e a chave do convite ficaram fora dos registros observados no retransmissor.
 
-[Ver o cadastro web restaurado](previews/web-cadastro-amanhecer.png)
+Ao abrir o site, a aba **Entrar** mostra o farol ao anoitecer. **Criar conta** mostra o mesmo porto ao amanhecer, como no aplicativo Windows. [Ver o login](previews/web-entrada.png) · [Ver o cadastro](previews/web-cadastro-amanhecer.png)

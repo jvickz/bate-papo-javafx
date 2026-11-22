@@ -127,6 +127,91 @@ def capture(page, directory, name):
         page.screenshot(path=str(directory / name), full_page=True, animations="disabled")
 
 
+def check_harbor_scene(page, mode):
+    """Check the painted dusk/dawn scene, including the striped tower, against HarborBackdrop.java."""
+    expect(page.locator("#auth-view")).to_have_attribute("data-mode", mode)
+    expect(page.locator("#login-tab" if mode == "login" else "#register-tab")).to_have_attribute("aria-selected", "true")
+    expect(page.locator("#registration-harbor")).to_be_visible()
+    sky, sun = (0x23334D, 0xF2CE9B) if mode == "login" else (0x608D9B, 0xFFF0BF)
+    page.wait_for_function("""([sky, sun]) => {
+        const canvas = document.querySelector("#registration-harbor");
+        const ctx = canvas.getContext("2d");
+        const rgb = (pixels, i) => (pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2];
+        if (!canvas.clientHeight || rgb(ctx.getImageData(0, 0, 1, 1).data, 0) !== sky) return false;
+        // The sun and the lighthouse occupy the right half of the headland.
+        const x = Math.floor(canvas.width / 2);
+        const pixels = ctx.getImageData(x, 0, canvas.width - x, Math.ceil(canvas.height * .60)).data;
+        let sunlight = false, brick = false, wall = false;
+        for (let i = 0; i < pixels.length; i += 4) {
+            const color = rgb(pixels, i);
+            sunlight ||= color === sun;
+            brick ||= color === 0xB65E50;
+            wall ||= color === 0xE6D4BA;
+            if (sunlight && brick && wall) return true;
+        }
+        return false;
+    }""", arg=[sky, sun], timeout=6000)
+    no_horizontal_overflow(page)
+
+
+def expect_harbor_moving(page):
+    harbor = page.locator("#registration-harbor")
+    # Two successive changes distinguish continuous motion from a single layout redraw.
+    for _ in range(2):
+        page.wait_for_function(
+            "first => document.querySelector('#registration-harbor').toDataURL() !== first",
+            arg=harbor.evaluate("canvas => canvas.toDataURL()"), timeout=6000)
+
+
+def expect_harbor_still(page):
+    harbor = page.locator("#registration-harbor")
+    # Let media, dialog and resize notifications settle before sampling several normal frame intervals.
+    page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+    still = harbor.evaluate("canvas => canvas.toDataURL()")
+    page.wait_for_timeout(400)
+    assert still == harbor.evaluate("canvas => canvas.toDataURL()"), "O porto continuou animado enquanto deveria estar pausado."
+
+
+def check_access_flow(page, url, screenshots, *, mobile):
+    waterfall_requests = []
+
+    def track(request):
+        if urlsplit(request.url).path in ("/waterfall.png", "/waterfall-atlas.png"):
+            waterfall_requests.append(urlsplit(request.url).path)
+
+    page.on("request", track)
+    try:
+        page.bring_to_front()
+        page.goto(url, wait_until="load")
+        expect(page.locator("#auth-submit")).to_be_enabled()
+        suffix = "-mobile" if mobile else ""
+        for mode, filename in (("login", "web-entrada"), ("register", "web-cadastro-amanhecer")):
+            if mode == "register":
+                page.locator("#register-tab").click()
+            check_harbor_scene(page, mode)
+            page.emulate_media(reduced_motion="no-preference")
+            expect_harbor_moving(page)
+            page.emulate_media(reduced_motion="reduce")
+            expect_harbor_still(page)
+            capture(page, screenshots, filename + suffix + ".png")
+        page.locator("#login-tab").click()
+        check_harbor_scene(page, "login")
+        expect(page.locator("#auth-password")).to_have_attribute("autocomplete", "current-password")
+        assert not waterfall_requests, f"O acesso carregou a arte da cachoeira: {waterfall_requests}"
+    finally:
+        page.remove_listener("request", track)
+        page.emulate_media(reduced_motion="no-preference")
+    # The anonymous dialog uses the waterfall by design. Check the unchanged login canvas behind it.
+    expect_harbor_moving(page)
+    page.locator("#open-secret-room").click()
+    expect(page.locator("#secret-room")).to_be_visible()
+    expect_harbor_still(page)
+    page.locator("#room-close").click()
+    expect(page.locator("#secret-room")).to_have_count(0)
+    check_harbor_scene(page, "login")
+    expect_harbor_moving(page)
+
+
 def bind_checks(context, url, errors):
     base = urlsplit(url)
 
@@ -159,28 +244,10 @@ def exercise(browser, url, screenshots):
         for context in (first, second):
             bind_checks(context, url, errors)
         a, b = first.new_page(), second.new_page()
-        for page in (a, b):
-            page.goto(url, wait_until="load")
-            expect(page.locator("#auth-submit")).to_be_enabled()
-            no_horizontal_overflow(page)
-        capture(a, screenshots, "web-entrada.png")
         a.set_viewport_size({"width": 1080, "height": 760})
-        a.bring_to_front()
-        a.locator("#register-tab").click()
-        harbor = a.locator("#registration-harbor")
-        expect(harbor).to_be_visible()
-        a.emulate_media(reduced_motion="no-preference")
-        a.wait_for_function(
-            "first => document.querySelector('#registration-harbor').toDataURL() !== first",
-            arg=harbor.evaluate("canvas => canvas.toDataURL()"), timeout=6000)
-        a.emulate_media(reduced_motion="reduce")
-        a.wait_for_timeout(200)
-        still = harbor.evaluate("canvas => canvas.toDataURL()")
-        a.wait_for_timeout(350)
-        assert still == harbor.evaluate("canvas => canvas.toDataURL()"), "Respeitar a redução de movimento."
-        capture(a, screenshots, "web-cadastro-amanhecer.png")
+        check_access_flow(a, url, screenshots, mobile=False)
+        check_access_flow(b, url, screenshots, mobile=True)
         a.set_viewport_size({"width": 1320, "height": 830})
-        a.emulate_media(reduced_motion="no-preference")
         password = secrets.token_urlsafe(25)
         account(a, "Marina", password, register=True)
         account(b, "Caio", password, register=True)

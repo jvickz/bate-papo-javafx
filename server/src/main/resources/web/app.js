@@ -31,15 +31,13 @@
   function setMode(create) {
     registering = create;
     el("auth-view").dataset.mode = create ? "register" : "login";
-    username.placeholder = create ? "3–24 letras, números ou _" : "Seu usuário";
+    username.placeholder = create ? "3–24 letras, números ou _" : "Seu nome de usuário";
     if (!create) el("registration-server").open = false;
     for (const [id, active] of [["login-tab", !create], ["register-tab", create]]) {
       el(id).setAttribute("aria-selected", String(active));
       el(id).tabIndex = active ? 0 : -1;
     }
     el("auth-title").textContent = create ? "Crie sua conta" : "Entre na sua conta";
-    el("auth-description").textContent = create ? "Escolha o nome que vai aparecer nos canais." :
-      "Use sua conta do Wavecove para acessar os canais.";
     password.autocomplete = create ? "new-password" : "current-password";
     el("auth-submit-label").textContent = create ? "Criar conta" : "Entrar";
     el("auth-help").hidden = !create;

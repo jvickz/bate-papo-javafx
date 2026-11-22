@@ -1,16 +1,24 @@
-// Registration uses the same dawn palette, pixel grid and motion as HarborBackdrop.java.
+// Match the desktop harbor at twilight on login and first light on registration.
 (() => {
   "use strict";
   const auth = document.getElementById("auth-view");
   const canvas = document.getElementById("registration-harbor");
   const context = canvas.getContext("2d", {alpha: false});
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const sky = [96, 141, 155], horizonColor = [255, 208, 158];
-  const sea = [57, 113, 121], foam = [193, 217, 190], sun = [255, 240, 191];
+  const palettes = {
+    login: {
+      sky: [35, 51, 77], horizonColor: [183, 149, 164], sea: [48, 79, 99],
+      foam: [148, 185, 180], sun: [242, 206, 155], sunHeight: 22, ridge: "#586278"
+    },
+    register: {
+      sky: [96, 141, 155], horizonColor: [255, 208, 158], sea: [57, 113, 121],
+      foam: [193, 217, 190], sun: [255, 240, 191], sunHeight: 9, ridge: "#899993"
+    }
+  };
   const shade = [34, 52, 66];
   const rock = "#354657", iron = "#344453", brick = "#b65e50", roof = "#78434a";
   const wall = "#e6d4ba", wallShade = "#aeb0a5", light = "#fff3bc";
-  let frame = 0, lastFrame = null, phase = 0, wasRegistering = false;
+  let frame = 0, lastFrame = null, phase = 0, mode = "login";
 
   function blend(a, b, t) {
     return "rgb(" + a.map((value, i) => Math.trunc(value + (b[i] - value) * t)).join(",") + ")";
@@ -64,13 +72,15 @@
     context.setTransform(pixel, 0, 0, pixel, 0, 0);
     const w = Math.ceil(width / pixel), h = Math.ceil(height / pixel);
     const horizon = Math.round(h * .55);
+    const {sky, horizonColor, sea, foam, sun, sunHeight, ridge} = palettes[mode];
     for (let y = 0; y < horizon; y += 3) {
       rect(blend(sky, horizonColor, y / horizon), 0, y, w, 3);
     }
-    const sunX = Math.trunc(w * .66), sunY = horizon - 9;
+    const sunX = Math.trunc(w * .66), sunY = horizon - sunHeight;
+    const sunColor = "rgb(" + sun.join(",") + ")";
     for (let dy = -10; dy <= 10; dy++) {
       const radius = Math.trunc(Math.sqrt(100 - dy * dy));
-      rect("#fff0bf", sunX - radius, sunY + dy, radius * 2 + 1, 1);
+      rect(sunColor, sunX - radius, sunY + dy, radius * 2 + 1, 1);
     }
     for (let i = 0; i < 7; i++) {
       const x = Math.trunc(i * 59 + phase * .5) % (w + 36) - 30;
@@ -79,8 +89,8 @@
       rect(blend(horizonColor, sky, .32), x + 6, y - 1, 9 + i, 1);
     }
     for (let x = 0; x < w; x += 2) {
-      const ridge = Math.trunc(5 + 3 * Math.sin(x * .071) + 2 * Math.cos(x * .18));
-      rect("#899993", x, horizon - ridge, 2, ridge + 1);
+      const ridgeHeight = Math.trunc(5 + 3 * Math.sin(x * .071) + 2 * Math.cos(x * .18));
+      rect(ridge, x, horizon - ridgeHeight, 2, ridgeHeight + 1);
     }
     for (let y = horizon; y < h; y += 3) {
       rect(blend(sea, shade, (y - horizon) / (h - horizon) * .85), 0, y, w, 3);
@@ -125,19 +135,22 @@
   function update() {
     cancelAnimationFrame(frame);
     lastFrame = null;
-    const registering = auth.dataset.mode === "register";
-    if (!wasRegistering && registering) phase = 0;
-    wasRegistering = registering;
-    if (!context || !registering || auth.hidden || document.hidden || document.querySelector("dialog[open]")) return;
+    const nextMode = auth.dataset.mode === "register" ? "register" : "login";
+    if (mode !== nextMode) phase = 0;
+    mode = nextMode;
+    if (!context || auth.hidden || document.hidden || document.querySelector("dialog[open]")) return;
     draw();
     if (!reduced.matches) frame = requestAnimationFrame(tick);
   }
 
   new MutationObserver(update).observe(auth, {attributes: true, attributeFilter: ["data-mode", "hidden"]});
+  // The room removes its dialog before the closing toggle can reach the document.
+  new MutationObserver(update).observe(document.body, {childList: true});
   new ResizeObserver(update).observe(canvas);
   reduced.addEventListener("change", update);
   document.addEventListener("visibilitychange", update);
   document.addEventListener("toggle", event => { if (event.target instanceof HTMLDialogElement) update(); }, true);
+  update();
 
   document.getElementById("registration-origin").textContent = location.origin;
   const check = document.getElementById("registration-check");
