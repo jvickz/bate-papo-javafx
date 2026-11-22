@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b17">
+  <meta name="description" content="Entre no Wavecove para conversar em tempo real nos canais do navegador e do aplicativo para Windows.">
+  <title>Wavecove · Canais de conversa</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/direct.css">
+  <script defer src="/direct.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <div id="auth-view" class="auth-shell">
+    <header class="masthead">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Wavecove</span></div>
+      <span class="platform"><span aria-hidden="true" class="monitor-icon"></span>Cliente web</span>
+    </header>
+
+    <main class="access-layout">
+      <section class="landscape" aria-labelledby="landscape-title">
+        <img class="landscape-art" src="/waterfall.png" alt="" width="416" height="248">
+        <div class="landscape-copy">
+          <h2 id="landscape-title">Canais de conversa<span aria-hidden="true">.</span></h2>
+          <p>Converse em tempo real com quem está no navegador ou no aplicativo para Windows.</p>
+        </div>
+      </section>
+
+      <section class="auth-pane" aria-labelledby="auth-title">
+        <div class="auth-box">
+          <div class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+            <button type="button" role="tab" id="login-tab" aria-controls="auth-panel" aria-selected="true">Entrar</button>
+            <button type="button" role="tab" id="register-tab" aria-controls="auth-panel" aria-selected="false">Criar conta</button>
+          </div>
+          <div id="auth-panel" role="tabpanel" aria-labelledby="auth-title">
+            <h1 id="auth-title">Entre na sua conta</h1>
+            <p id="auth-description" class="intro">Use sua conta do Wavecove para acessar os canais.</p>
+            <form id="auth-form" method="post" action="/accounts/login">
+              <label for="auth-username">Nome de usuário</label>
+              <div class="field-wrap">
+                <span class="field-prefix" aria-hidden="true">@</span>
+                <input id="auth-username" name="username" type="text" placeholder="Seu usuário" required
+                       autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="24">
+              </div>
+              <label for="auth-password">Senha</label>
+              <div class="field-wrap password-wrap">
+                <span class="lock-icon" aria-hidden="true"></span>
+                <input id="auth-password" name="password" type="password" placeholder="Sua senha" required autocomplete="current-password">
+                <button type="button" id="password-toggle" class="icon-button" aria-label="Mostrar senha" aria-pressed="false">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+              <p id="auth-help" class="help" hidden>Use de 3 a 24 letras sem acento, números ou _ no usuário. A senha deve ter de 12 a 128 caracteres.</p>
+              <p id="auth-error" class="notice" role="alert"></p>
+              <button class="primary auth-submit" type="submit" id="auth-submit"><span id="auth-submit-label">Entrar</span><span class="action-arrow" aria-hidden="true">→</span></button>
+            </form>
+          </div>
+          <noscript><p class="notice">Ative o JavaScript para entrar e receber mensagens em tempo real.</p></noscript>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="chat-view" class="chat-shell" hidden>
+    <header class="chat-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Wavecove</span></div>
+      <div class="session-controls">
+        <span id="connection-status" data-state="connecting" role="status">Conectando…</span>
+        <button type="button" id="retry-button" class="quiet-button" hidden>Reconectar</button>
+        <button type="button" id="open-dms" class="quiet-button dm-launch" aria-label="Mensagens privadas" title="Mensagens privadas"><span class="chat-icon" aria-hidden="true"></span><span class="dm-word">Privadas</span></button>
+        <div class="profile"><span id="self-initial" class="profile-initial" aria-hidden="true"></span><span id="self-name"></span></div>
+        <button type="button" id="logout-button" class="quiet-button">Sair</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="channel-rail" aria-label="Navegação por canais">
+        <div class="rail-landscape" aria-hidden="true"></div>
+        <details id="channel-drawer" class="rail-section" open>
+          <summary>Canais de texto<span class="caret" aria-hidden="true"></span></summary>
+          <nav aria-label="Canais disponíveis"><ul class="channel-list" id="channels"></ul></nav>
+          <details class="create-channel">
+            <summary><span class="plus" aria-hidden="true">+</span> Criar canal</summary>
+            <form id="channel-form">
+              <label for="channel-name">Nome do canal</label>
+              <input id="channel-name" name="channel" type="text" placeholder="nome-do-canal" autocapitalize="none" spellcheck="false" maxlength="24" required>
+              <button class="quiet-button" id="channel-create" type="submit">Criar e entrar</button>
+            </form>
+          </details>
+        </details>
+      </aside>
+
+      <main class="conversation" aria-labelledby="channel-title">
+        <header class="conversation-heading">
+          <div>
+            <h1 id="channel-title">#geral</h1>
+            <p>Canal de texto público</p>
+          </div>
+        </header>
+        <div class="feed">
+          <div class="empty-chat" id="empty-chat">
+            <span class="empty-icon" aria-hidden="true">#</span>
+            <h2>Conversa do canal</h2>
+            <p>As novas mensagens aparecem aqui.</p>
+          </div>
+          <ol id="messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens do canal" tabindex="0"></ol>
+        </div>
+        <div class="compose-area">
+          <p id="chat-notice" class="notice" role="status"></p>
+          <form id="composer-form">
+            <label class="sr-only" for="message-input">Mensagem para o canal</label>
+            <textarea id="message-input" name="message" rows="2" placeholder="Escreva uma mensagem…" aria-describedby="compose-hint"></textarea>
+            <button id="send-button" class="primary" type="submit">Enviar <span aria-hidden="true">↗</span></button>
+          </form>
+          <div class="composer-meta"><span id="compose-hint"><kbd>Enter</kbd> envia <span aria-hidden="true">·</span> <kbd>Shift + Enter</kbd> quebra a linha</span><span id="message-count">0 / 2000</span></div>
+        </div>
+      </main>
+
+      <aside class="member-rail" aria-label="Presença no canal">
+        <details id="member-drawer" class="rail-section" open>
+          <summary>Participantes <span id="member-count" class="count">0</span><span class="caret" aria-hidden="true"></span></summary>
+          <ul id="members" class="member-list"></ul>
+        </details>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

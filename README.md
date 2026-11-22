@@ -1,4 +1,6 @@
-# Wavecove para Windows
+# Wavecove para navegador e Windows
+
+Abra o [Wavecove Web](https://bate-papo-java.onrender.com/) para entrar com a mesma conta, conversar nos canais e acessar mensagens privadas. O servidor entrega a página e a API na mesma origem. Para executar localmente e consultar a análise de arquitetura, privacidade e operação, veja o [guia do cliente web](docs/WEB-E-ANALISE.md).
 
 Aplicativo JavaFX em português com servidor Java/WebSocket. Cada pessoa cria uma conta e entra com seu usuário e senha para conversar em tempo real no mesmo canal.
 

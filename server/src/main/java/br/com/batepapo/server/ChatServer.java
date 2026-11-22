@@ -10,6 +10,7 @@ import java.util.concurrent.*;
 public final class ChatServer implements AutoCloseable {
     private final Javalin app;
     private final Room room;
+    private final SecretRelay secretRelay = new SecretRelay();
     private final int port;
     private final TurnCredentialsProvider turn;
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("room-heartbeat").factory());
@@ -36,7 +37,17 @@ public final class ChatServer implements AutoCloseable {
         app = Javalin.create(config -> {
             config.startup.showJavalinBanner = false;
             config.startup.showOldJavalinVersionWarning = false;
-            config.jetty.host = "0.0.0.0";
+            config.jetty.host = System.getenv().getOrDefault("WAVECOVE_BIND_ADDRESS", "0.0.0.0");
+            if (store != null) {
+                config.staticFiles.add(files -> {
+                    files.directory = "/web";
+                    files.headers = java.util.Map.of(
+                            "Cache-Control", "no-cache",
+                            "Content-Security-Policy", "default-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+                            "Referrer-Policy", "no-referrer",
+                            "X-Content-Type-Options", "nosniff");
+                });
+            }
             config.jetty.modifyWebSocketServletFactory(factory -> {
                 factory.setMaxTextMessageSize(Protocol.MAX_BYTES);
                 factory.setMaxBinaryMessageSize(1);
@@ -61,6 +72,7 @@ public final class ChatServer implements AutoCloseable {
             }
             config.routes.post(Attachment.PATH, attachments::upload);
             config.routes.get(Attachment.PATH + "/{id}", attachments::download);
+            config.routes.ws("/secret/{room}/{slot}", secretRelay::configure);
             config.routes.ws("/chat", ws -> {
                 ws.onConnect(ctx -> room.open(ctx.sessionId, new SocketPeer(ctx.session)));
                 ws.onMessage(ctx -> room.receive(ctx.sessionId, ctx.message()));
@@ -73,12 +85,14 @@ public final class ChatServer implements AutoCloseable {
     public ChatServer start() {
         app.start(port);
         timer.scheduleAtFixedRate(room::tick, 1, 1, TimeUnit.SECONDS);
+        timer.scheduleAtFixedRate(secretRelay::expire, 15, 15, TimeUnit.SECONDS);
         return this;
     }
     public int port() { return app.port(); }
     @Override public void close() {
         timer.shutdownNow();
         room.shutdown();
+        secretRelay.shutdown();
         if (turn != null) turn.close();
         app.stop();
     }
